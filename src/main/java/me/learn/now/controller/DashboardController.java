@@ -39,18 +39,6 @@ public class DashboardController {
         return ResponseEntity.ok(recommendations);
     }
 
-    // Endpoint to track when a user starts or resumes a course (dedicated route to avoid collision)
-    @PostMapping("/progress/actions")
-    public ResponseEntity<?> trackCourseAction(
-            @PathVariable Long userId,
-            @RequestBody CourseActionRequest request) {
-        try {
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to track course action: " + e.getMessage());
-        }
-    }
-
     // Endpoint to track when a user starts a challenge
     @PostMapping("/challenges/start")
     public ResponseEntity<?> startChallenge(
@@ -62,28 +50,6 @@ public class DashboardController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to start challenge: " + e.getMessage());
-        }
-    }
-
-    // Request objects for POST endpoints
-    public static class CourseActionRequest {
-        private Long topicId;
-        private String action; // "start" or "resume"
-
-        public Long getTopicId() {
-            return topicId;
-        }
-
-        public void setTopicId(Long topicId) {
-            this.topicId = topicId;
-        }
-
-        public String getAction() {
-            return action;
-        }
-
-        public void setAction(String action) {
-            this.action = action;
         }
     }
 

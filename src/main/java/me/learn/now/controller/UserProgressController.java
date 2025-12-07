@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController // ye controller user ke progress related cheeze handle karega
 @RequestMapping("/api/users/{userId}/progress")
@@ -33,8 +34,10 @@ public class UserProgressController {
     public ResponseEntity<?> create(@PathVariable Long userId, @RequestBody(required = false) Map<String, Object> payload){
         Map<String, Object> body = payload != null ? payload : Map.of();
         try {
-            boolean isCourseAction = body.containsKey("action") && body.containsKey("topicId") && body.size() <= 2;
-            if (isCourseAction) {
+            CourseActionRequest courseAction = objectMapper.convertValue(body, CourseActionRequest.class);
+            boolean hasCourseActionData = courseAction.getAction() != null || courseAction.getTopicId() != null;
+            boolean hasOnlyCourseActionFields = body.keySet().stream().allMatch(key -> Set.of("action", "topicId").contains(key));
+            if (hasCourseActionData && hasOnlyCourseActionFields) {
                 return ResponseEntity.ok().build();
             }
             UserProgress input = objectMapper.convertValue(body, UserProgress.class);
@@ -86,5 +89,26 @@ public class UserProgressController {
         Integer seconds = value != null ? value : (body != null ? body.get("value") : null);
         if (seconds == null) throw new IllegalArgumentException("seconds value required");
         return ResponseEntity.ok(ups.setWatchSecondsByTopic(userId, topicId, seconds));
+    }
+
+    public static class CourseActionRequest {
+        private Long topicId;
+        private String action;
+
+        public Long getTopicId() {
+            return topicId;
+        }
+
+        public void setTopicId(Long topicId) {
+            this.topicId = topicId;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String action) {
+            this.action = action;
+        }
     }
 }

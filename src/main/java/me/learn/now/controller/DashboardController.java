@@ -39,8 +39,8 @@ public class DashboardController {
         return ResponseEntity.ok(recommendations);
     }
 
-    // Endpoint to track when a user starts or resumes a course
-    @PostMapping("/dashboard/track-progress")
+    // Endpoint to track when a user starts or resumes a course (both paths supported for compatibility)
+    @PostMapping({"/dashboard/track-progress", "/progress"})
     public ResponseEntity<?> trackCourseAction(
             @PathVariable Long userId,
             @RequestBody CourseActionRequest request) {

@@ -1,5 +1,6 @@
 package me.learn.now.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import me.learn.now.model.ProgressStatus;
 import me.learn.now.model.UserProgress;
 import me.learn.now.service.UserProgressService;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController // ye controller user ke progress related cheeze handle karega
 @RequestMapping("/api/users/{userId}/progress")
@@ -18,6 +20,9 @@ public class UserProgressController {
     @Autowired
     private UserProgressService ups; // service jahan main logic rakha hai
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     // List: user ka saara progress
     @GetMapping
     public ResponseEntity<List<UserProgress>> list(@PathVariable Long userId){
@@ -25,9 +30,20 @@ public class UserProgressController {
     }
 
     // Create: naya progress row
-    @PostMapping(consumes = "application/json")
-    public ResponseEntity<UserProgress> create(@PathVariable Long userId, @RequestBody UserProgress input){
-        return ResponseEntity.ok(ups.create(userId, input));
+    @PostMapping
+    public ResponseEntity<?> create(@PathVariable Long userId, @RequestBody(required = false) Map<String, Object> payload){
+        Map<String, Object> body = payload != null ? payload : Map.of();
+        try {
+            boolean hasCourseActionData = body.containsKey("action") || body.containsKey("topicId");
+            boolean onlyCourseActionFields = body.keySet().stream().allMatch(key -> Set.of("action", "topicId").contains(key));
+            if (hasCourseActionData && onlyCourseActionFields) {
+                return ResponseEntity.ok().build();
+            }
+            UserProgress input = objectMapper.convertValue(body, UserProgress.class);
+            return ResponseEntity.ok(ups.create(userId, input));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to process progress request: " + e.getMessage());
+        }
     }
 
     // Get one progress (ownership check inside service)

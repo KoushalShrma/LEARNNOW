@@ -1,6 +1,5 @@
 package me.learn.now.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import me.learn.now.model.ProgressStatus;
 import me.learn.now.model.UserProgress;
 import me.learn.now.service.UserProgressService;
@@ -19,9 +18,6 @@ public class UserProgressController {
     @Autowired
     private UserProgressService ups; // service jahan main logic rakha hai
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     // List: user ka saara progress
     @GetMapping
     public ResponseEntity<List<UserProgress>> list(@PathVariable Long userId){
@@ -29,13 +25,8 @@ public class UserProgressController {
     }
 
     // Create: naya progress row
-    @PostMapping
-    public ResponseEntity<?> create(@PathVariable Long userId, @RequestBody(required = false) Map<String, Object> payload){
-        Map<String, Object> body = payload != null ? payload : Map.of();
-        if (body.containsKey("action")) {
-            return ResponseEntity.ok().build();
-        }
-        UserProgress input = objectMapper.convertValue(body, UserProgress.class);
+    @PostMapping(headers = "!X-Track-Action")
+    public ResponseEntity<UserProgress> create(@PathVariable Long userId, @RequestBody UserProgress input){
         return ResponseEntity.ok(ups.create(userId, input));
     }
 

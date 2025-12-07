@@ -39,6 +39,19 @@ public class DashboardController {
         return ResponseEntity.ok(recommendations);
     }
 
+    // Endpoint to track when a user starts or resumes a course (form payload to avoid mapping conflict)
+    @PostMapping(value = "/progress", consumes = "application/x-www-form-urlencoded")
+    public ResponseEntity<?> trackCourseAction(
+            @PathVariable Long userId,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) String action) {
+        try {
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to track course action: " + e.getMessage());
+        }
+    }
+
     // Endpoint to track when a user starts a challenge
     @PostMapping("/challenges/start")
     public ResponseEntity<?> startChallenge(

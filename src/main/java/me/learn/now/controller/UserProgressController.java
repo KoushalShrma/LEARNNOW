@@ -33,7 +33,8 @@ public class UserProgressController {
     public ResponseEntity<?> create(@PathVariable Long userId, @RequestBody(required = false) Map<String, Object> payload){
         Map<String, Object> body = payload != null ? payload : Map.of();
         try {
-            if (body.containsKey("action")) {
+            boolean isCourseAction = body.containsKey("action") && body.containsKey("topicId") && body.size() <= 2;
+            if (isCourseAction) {
                 return ResponseEntity.ok().build();
             }
             UserProgress input = objectMapper.convertValue(body, UserProgress.class);

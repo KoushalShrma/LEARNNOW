@@ -24,6 +24,12 @@ public class UserProgressController {
         return ResponseEntity.ok(ups.listByUser(userId));
     }
 
+    // Create: naya progress row
+    @PostMapping
+    public ResponseEntity<UserProgress> create(@PathVariable Long userId, @RequestBody UserProgress input){
+        return ResponseEntity.ok(ups.create(userId, input));
+    }
+
 
     // Get one progress (ownership check inside service)
     @GetMapping("/{progressId}")

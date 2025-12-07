@@ -121,7 +121,7 @@ public class DashboardService {
         progress.sort(Comparator.comparing(UserProgress::getLastSeenAt).reversed());
 
         // Get most recent activity
-        LocalDateTime lastActivity = progress.get(0).getLastSeenAt();
+        LocalDateTime lastActivity = progress.getFirst().getLastSeenAt();
 
         // If the user has activity in the last 24 hours, give them a streak
         // This is a very simplified implementation

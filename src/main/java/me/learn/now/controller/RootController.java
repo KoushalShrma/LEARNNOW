@@ -8,10 +8,11 @@ public class RootController {
 
     @GetMapping("/")
     public String home() {
-        return "LearNnow Backend API is running! 🚀\n" +
-               "Frontend: http://localhost:3000\n" +
-               "API Docs: http://localhost:8080/swagger-ui.html\n" +
-               "Auth Endpoints: /api/auth/login, /api/auth/register";
+        return """
+               LearNnow Backend API is running! 🚀
+               Frontend: http://localhost:3000
+               API Docs: http://localhost:8080/swagger-ui.html
+               Auth Endpoints: /api/auth/login, /api/auth/register""";
     }
 
     @GetMapping("/health")

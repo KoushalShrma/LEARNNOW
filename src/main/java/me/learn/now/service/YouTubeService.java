@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Hinglish: YouTube Data API se videos search karne ke liye service class
@@ -171,7 +172,7 @@ public class YouTubeService {
         };
 
         // Hinglish: random channel select kar ke uski videos fetch karte hai
-        String channelQuery = popularChannels[(int) (Math.random() * popularChannels.length)];
+        String channelQuery = popularChannels[(int) (ThreadLocalRandom.current().nextDouble() * popularChannels.length)];
         return searchEducationalVideos(channelQuery, maxResults);
     }
 

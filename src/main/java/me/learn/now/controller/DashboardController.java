@@ -40,7 +40,7 @@ public class DashboardController {
     }
 
     // Endpoint to track when a user starts or resumes a course
-    @PostMapping("/progress")
+    @PostMapping("/progress/actions")
     public ResponseEntity<?> trackCourseAction(
             @PathVariable Long userId,
             @RequestBody CourseActionRequest request) {

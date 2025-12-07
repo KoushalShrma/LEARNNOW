@@ -1,13 +1,18 @@
 package me.learn.now.controller;
 
 import me.learn.now.dto.dashboard.ActivityDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import me.learn.now.dto.dashboard.RecommendationDTO;
 import me.learn.now.dto.dashboard.UserStatsDTO;
+import me.learn.now.model.UserProgress;
 import me.learn.now.service.DashboardService;
+import me.learn.now.service.UserProgressService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.List;
 
 @RestController
@@ -16,6 +21,12 @@ public class DashboardController {
 
     @Autowired
     private DashboardService dashboardService;
+
+    @Autowired
+    private UserProgressService userProgressService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @GetMapping("/stats")
     public ResponseEntity<UserStatsDTO> getUserStats(@PathVariable Long userId) {
@@ -39,15 +50,22 @@ public class DashboardController {
         return ResponseEntity.ok(recommendations);
     }
 
-    // Endpoint to track when a user starts or resumes a course (requires query flag to avoid mapping clash)
-    @PostMapping(value = "/progress", params = "track=true")
-    public ResponseEntity<?> trackCourseAction(
+    // Endpoint to track course actions or create progress (single mapping to avoid collisions)
+    @PostMapping("/progress")
+    public ResponseEntity<?> trackOrCreateProgress(
             @PathVariable Long userId,
-            @RequestBody CourseActionRequest request) {
+            @RequestBody(required = false) Map<String, Object> payload) {
+        Map<String, Object> body = payload != null ? payload : Map.of();
         try {
-            return ResponseEntity.ok().build();
+            boolean hasCourseActionData = body.containsKey("action") || body.containsKey("topicId");
+            boolean onlyActionFields = body.keySet().stream().allMatch(key -> Set.of("action", "topicId").contains(key));
+            if (hasCourseActionData && onlyActionFields) {
+                return ResponseEntity.ok().build();
+            }
+            UserProgress input = objectMapper.convertValue(body, UserProgress.class);
+            return ResponseEntity.ok(userProgressService.create(userId, input));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to track course action: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Failed to process progress request: " + e.getMessage());
         }
     }
 
@@ -77,24 +95,4 @@ public class DashboardController {
         }
     }
 
-    public static class CourseActionRequest {
-        private Long topicId;
-        private String action; // "start" or "resume"
-
-        public Long getTopicId() {
-            return topicId;
-        }
-
-        public void setTopicId(Long topicId) {
-            this.topicId = topicId;
-        }
-
-        public String getAction() {
-            return action;
-        }
-
-        public void setAction(String action) {
-            this.action = action;
-        }
-    }
 }

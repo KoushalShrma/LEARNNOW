@@ -129,9 +129,15 @@ export const learningPathAPI = {
 
 export const youtubeAPI = {
   search: (query, max = 10) => api.get(`/api/youtube/search?query=${encodeURIComponent(query)}&max=${max}`),
+  searchBest: (query) => api.get(`/api/youtube/best?query=${encodeURIComponent(query)}`),
+  searchBestMultiple: (query, max = 3) => api.get(`/api/youtube/best-multiple?query=${encodeURIComponent(query)}&max=${max}`),
   getPopular: (max = 8) => api.get(`/api/youtube/popular?max=${max}`),
   getByTopic: (topic, max = 6) => api.get(`/api/youtube/topic/${encodeURIComponent(topic)}?max=${max}`),
   healthCheck: () => api.get('/api/youtube/health'),
+};
+
+export const coursesAPI = {
+  generateSubtopics: (courseData) => api.post('/api/courses/generate-subtopics', courseData),
 };
 
 export const usersAPI = {
@@ -140,6 +146,14 @@ export const usersAPI = {
   update: (id, userData) => api.put(`/api/users/${id}`, userData),
   updatePassword: (id, passwordData) => api.put(`/api/users/pass/${id}`, passwordData),
   delete: (id) => api.delete(`/api/users/${id}`),
+};
+
+export const certificatesAPI = {
+  generate: (userId, courseId, userName) => 
+    api.post('/api/certificates/generate', { userId, courseId, userName }),
+  getUserCertificates: (userId) => api.get(`/api/certificates/user/${userId}`),
+  verify: (certificateNumber) => api.get(`/api/certificates/verify/${certificateNumber}`),
+  check: (userId, courseId) => api.get(`/api/certificates/check/${userId}/${courseId}`),
 };
 
 export default api;

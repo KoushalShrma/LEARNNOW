@@ -10,7 +10,8 @@ import {
   BookOpen, 
   BarChart3,
   Trophy,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Button from '@/components/ui/Button';
@@ -25,8 +26,9 @@ const Header = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+    { name: 'Progress', href: '/progress', icon: Trophy },
     { name: 'Discover', href: '/discover', icon: Search },
+    { name: 'Profile', href: '/profile', icon: User },
   ];
 
   const isActive = (path) => location.pathname === path;

@@ -1,6 +1,9 @@
 package me.learn.now.service;
 
+import me.learn.now.dto.VideoDTO;
+import me.learn.now.model.Topic;
 import me.learn.now.model.Video;
+import me.learn.now.repository.TopicRepo;
 import me.learn.now.repository.VideoRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,6 +15,31 @@ import java.util.Optional;
 public class VideoService {
     @Autowired
     private VideoRepo vr; // yahi se DB calls jayengi
+    
+    @Autowired
+    private TopicRepo tr; // topic fetch karne ke liye
+
+    // Create from DTO
+    public Video addFromDTO(VideoDTO dto) {
+        Video v = new Video();
+        v.setYoutubeId(dto.getYoutubeId());
+        v.setTitle(dto.getTitle());
+        v.setChannel(dto.getChannel());
+        v.setDuration(dto.getDuration());
+        v.setLanguage(dto.getLanguage());
+        v.setPosition(dto.getPosition());
+        v.setSubtopic(dto.getSubtopic());
+        v.setChaptersJson(dto.getChaptersJson());
+        
+        // Set topic if provided
+        if (dto.getTopic() != null && dto.getTopic().getId() != null) {
+            Topic topic = tr.findById(dto.getTopic().getId())
+                .orElseThrow(() -> new RuntimeException("Topic not found with id: " + dto.getTopic().getId()));
+            v.setTopic(topic);
+        }
+        
+        return vr.save(v);
+    }
 
     // Create
     public Video add(Video v){

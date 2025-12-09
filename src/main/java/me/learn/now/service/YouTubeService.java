@@ -61,25 +61,55 @@ public class YouTubeService {
             }
 
             // Hinglish: YouTube search query banate hai educational videos ke liye
-            String searchQuery = keyword + " tutorial programming learn";
+            // Add "tutorial" and "course" to ensure educational content
+            String searchQuery = keyword + " tutorial course explained";
 
             YouTube.Search.List search = youTube.search().list(List.of("snippet"));
             search.setKey(apiKey);
             search.setQ(searchQuery);
             search.setType(List.of("video"));
-            search.setMaxResults((long) maxResults);
+            search.setMaxResults((long) Math.min(maxResults * 5, 50)); // Fetch 5x more for filtering, max 50
             search.setOrder("relevance");
             search.setVideoDefinition("high");
             search.setVideoCategoryId("27"); // Education category
+            search.setVideoEmbeddable("true"); // Only embeddable videos
+            search.setVideoSyndicated("true"); // Only videos that can be played outside YouTube
+            search.setSafeSearch("strict"); // Filter out inappropriate content
+            search.setRelevanceLanguage("en"); // English content
 
             // Hinglish: API call kar ke results laate hai
             SearchListResponse searchResponse = search.execute();
             List<SearchResult> searchResults = searchResponse.getItems();
 
+            System.out.println("[YouTube Search] Query: " + searchQuery + ", Found " + (searchResults != null ? searchResults.size() : 0) + " results");
+
             List<YouTubeVideoDto> videos = new ArrayList<>();
+            int skippedCount = 0;
 
             // Hinglish: har search result ko process kar ke DTO banate hai
             for (SearchResult result : searchResults) {
+                String title = result.getSnippet().getTitle().toLowerCase();
+                String description = result.getSnippet().getDescription().toLowerCase();
+                
+                // Skip roadmap, career, and motivational videos
+                if (title.contains("roadmap") || title.contains("career path") || 
+                    title.contains("how to become") || title.contains("should you learn") ||
+                    title.contains("vs ") && title.contains("which") ||
+                    title.contains("top 10") || title.contains("best 10") ||
+                    title.contains("in 2024") || title.contains("in 2025")) {
+                    skippedCount++;
+                    System.out.println("[YouTube Search] Skipped roadmap/career: " + result.getSnippet().getTitle());
+                    continue;
+                }
+                
+                // Skip music, songs, and shorts
+                if (title.contains(" song") || title.contains(" music ") || 
+                    title.contains(" lyrics") || title.contains("#shorts")) {
+                    skippedCount++;
+                    System.out.println("[YouTube Search] Skipped music/shorts: " + result.getSnippet().getTitle());
+                    continue;
+                }
+                
                 YouTubeVideoDto video = new YouTubeVideoDto();
                 video.setVideoId(result.getId().getVideoId());
                 video.setTitle(result.getSnippet().getTitle());
@@ -100,6 +130,7 @@ public class YouTubeService {
             // Hinglish: additional details ke liye video statistics bhi fetch kar sakte hai
             fetchVideoStatistics(videos);
 
+            System.out.println("[YouTube Search] Returning " + videos.size() + " videos after filtering (" + skippedCount + " skipped)");
             return videos;
 
         } catch (Exception e) {
@@ -194,4 +225,177 @@ public class YouTubeService {
 
         return searchEducationalVideos(searchQuery, maxResults);
     }
+
+    /**
+     * Calculate quality score for a video based on multiple factors
+     * Score range: 0-100
+     */
+    public double calculateVideoQualityScore(YouTubeVideoDto video) {
+        double score = 0.0;
+        
+        // 1. View Count Score (0-25 points)
+        // Videos with 10K-1M views get best score (avoid both too low and viral non-educational)
+        long views = video.getViewCount() != null ? video.getViewCount() : 0;
+        if (views >= 10000 && views <= 1000000) {
+            score += 25;
+        } else if (views >= 5000 && views < 10000) {
+            score += 20;
+        } else if (views >= 1000000 && views <= 5000000) {
+            score += 20;
+        } else if (views >= 1000 && views < 5000) {
+            score += 15;
+        } else if (views > 5000000) {
+            score += 10; // Too viral, might not be best educational content
+        }
+        
+        // 2. Duration Score (0-25 points)
+        // Educational videos should be 10-60 minutes
+        Long duration = video.getDuration() != null ? video.getDuration() : 0L;
+        if (duration >= 600 && duration <= 3600) { // 10-60 minutes
+            score += 25;
+        } else if (duration >= 3600 && duration <= 7200) { // 60-120 minutes
+            score += 20;
+        } else if (duration >= 300 && duration < 600) { // 5-10 minutes
+            score += 15;
+        } else if (duration > 7200) { // > 2 hours
+            score += 10;
+        } else if (duration < 300 && duration > 0) { // < 5 minutes
+            score += 5; // Too short for quality education
+        }
+        
+        // 3. Title Quality Score (0-20 points)
+        String title = video.getTitle().toLowerCase();
+        
+        // Penalize roadmap/career/motivational videos
+        if (title.contains("roadmap") || title.contains("career") || 
+            title.contains("should you") || title.contains("top 10")) {
+            score -= 20; // Heavy penalty
+        }
+        
+        // Reward technical tutorial content
+        if (title.contains("complete") || title.contains("full course") || title.contains("comprehensive")) {
+            score += 10;
+        }
+        if (title.contains("tutorial") || title.contains("explained") || title.contains("guide")) {
+            score += 5;
+        }
+        if (title.contains("beginner") || title.contains("basics") || title.contains("fundamentals")) {
+            score += 5;
+        }
+        
+        // Bonus for hands-on/project-based content
+        if (title.contains("project") || title.contains("build") || title.contains("create")) {
+            score += 3;
+        }
+        
+        // 4. Channel Credibility (0-15 points)
+        String channel = video.getChannelTitle().toLowerCase();
+        String[] highQualityChannels = {
+            "traversy media", "programming with mosh", "freecodecamp",
+            "the net ninja", "academind", "codevolution",
+            "codewithharry", "apna college", "chai aur code",
+            "hitesh choudhary", "telusko", "java brains"
+        };
+        
+        for (String qualityChannel : highQualityChannels) {
+            if (channel.contains(qualityChannel)) {
+                score += 15;
+                break;
+            }
+        }
+        
+        // 5. Description Quality (0-15 points)
+        String description = video.getDescription() != null ? video.getDescription().toLowerCase() : "";
+        if (description.length() > 200) { // Detailed description
+            score += 5;
+        }
+        if (description.contains("github") || description.contains("source code")) {
+            score += 5;
+        }
+        if (description.contains("timestamps") || description.contains("chapters")) {
+            score += 5;
+        }
+        
+        return Math.min(score, 100.0);
+    }
+
+    /**
+     * Select the best video from a list based on quality scoring
+     */
+    public YouTubeVideoDto selectBestVideo(List<YouTubeVideoDto> videos) {
+        if (videos == null || videos.isEmpty()) {
+            return null;
+        }
+        
+        YouTubeVideoDto bestVideo = videos.get(0);
+        double bestScore = calculateVideoQualityScore(bestVideo);
+        
+        for (YouTubeVideoDto video : videos) {
+            double score = calculateVideoQualityScore(video);
+            if (score > bestScore) {
+                bestScore = score;
+                bestVideo = video;
+            }
+        }
+        
+        System.out.println("[YouTube Selection] Best video: " + bestVideo.getTitle() + 
+                         " (Score: " + String.format("%.1f", bestScore) + "/100)");
+        return bestVideo;
+    }
+
+    /**
+     * Search and select the best educational video for a topic
+     */
+    public YouTubeVideoDto searchBestVideo(String keyword) {
+        List<YouTubeVideoDto> candidates = searchEducationalVideos(keyword, 10);
+        return selectBestVideo(candidates);
+    }
+    
+    /**
+     * Search and select TOP 3 best videos for a subtopic
+     * Returns 1-3 videos based on quality and diversity
+     */
+    public List<YouTubeVideoDto> searchBestVideos(String keyword, int maxResults) {
+        List<YouTubeVideoDto> candidates = searchEducationalVideos(keyword, Math.min(maxResults, 10));
+        
+        if (candidates == null || candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // Score all candidates
+        List<VideoScore> scoredVideos = new ArrayList<>();
+        for (YouTubeVideoDto video : candidates) {
+            double score = calculateVideoQualityScore(video);
+            scoredVideos.add(new VideoScore(video, score));
+        }
+        
+        // Sort by score descending
+        scoredVideos.sort((a, b) -> Double.compare(b.score, a.score));
+        
+        // Take top videos (max 3)
+        int count = Math.min(3, Math.min(maxResults, scoredVideos.size()));
+        List<YouTubeVideoDto> bestVideos = new ArrayList<>();
+        
+        for (int i = 0; i < count; i++) {
+            bestVideos.add(scoredVideos.get(i).video);
+            System.out.println(String.format("[YouTube Selection] #%d: %s (Score: %.1f/100)", 
+                i + 1, scoredVideos.get(i).video.getTitle(), scoredVideos.get(i).score));
+        }
+        
+        return bestVideos;
+    }
+    
+    /**
+     * Helper class to pair videos with their scores
+     */
+    private static class VideoScore {
+        YouTubeVideoDto video;
+        double score;
+        
+        VideoScore(YouTubeVideoDto video, double score) {
+            this.video = video;
+            this.score = score;
+        }
+    }
 }
+

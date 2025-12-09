@@ -1,5 +1,6 @@
 package me.learn.now.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ public class Video {
 	private Integer duration; // in seconds
 	private String language;
 	private Integer position; // position in the topic
+	private String subtopic; // subtopic/section name for grouping videos
 	private String chaptersJson; // JSON representation of chapters
 	private LocalDateTime createAt;
 	private LocalDateTime updateAt;
@@ -25,6 +27,7 @@ public class Video {
 	// @ManyToOne @JoinColumn(name = "tId") → Many-to-One relation (Video → Topic) using foreign key column tId
 	@ManyToOne
 	@JoinColumn(name = "tId")
+	@JsonIgnore // Prevent infinite recursion when serializing to JSON
 	private Topic topic;
 
 	// CHANGED: Remove CascadeType.ALL to avoid deleting Quiz when Video is deleted; keep association optional
@@ -100,6 +103,14 @@ public class Video {
 
 	public void setPosition(Integer position) {
 		this.position = position;
+	}
+
+	public String getSubtopic() {
+		return subtopic;
+	}
+
+	public void setSubtopic(String subtopic) {
+		this.subtopic = subtopic;
 	}
 
 	public String getChaptersJson() {

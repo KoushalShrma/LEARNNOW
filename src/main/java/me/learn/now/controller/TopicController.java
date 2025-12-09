@@ -1,5 +1,6 @@
 package me.learn.now.controller;
 
+import me.learn.now.dto.TopicDTO;
 import me.learn.now.model.Topic;
 import me.learn.now.model.Video;
 import me.learn.now.model.Quiz;
@@ -24,7 +25,7 @@ public class TopicController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Topic>> getTopics(){
+    public ResponseEntity<List<TopicDTO>> getTopics(){
         return ResponseEntity.ok(ts.getTopics());
     }
 

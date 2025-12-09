@@ -1,11 +1,13 @@
 package me.learn.now.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
+@JsonIgnoreProperties({"videos", "quizzes", "user", "userProgress"}) // Prevent infinite recursion and N+1 query issues
 public class Topic {
 	
 	@Id
@@ -23,6 +25,11 @@ public class Topic {
 	private int enrolledUsers;
 	private double rating;
 
+	// Hinglish: har topic ka ek owner/creator user hota hai
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "u_id", nullable = true, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+	private User user;
+
 	// CHANGED: Use mappedBy instead of @JoinColumn on OneToMany; FK lives on Video table as tId
 	// @OneToMany(mappedBy = "topic") → One-to-Many relation (Topic → Videos) using the owning side on Video
 	@OneToMany(mappedBy = "topic", cascade = CascadeType.ALL, orphanRemoval = true) // mappedBy fix + cascade cleanup
@@ -30,8 +37,12 @@ public class Topic {
 
 	// No change to mapping name, just clarifying it's inverse side
 	// @OneToMany(mappedBy = "topic") → One-to-Many relation (Topic → Quizzes) inverse side; Quiz owns FK
-	@OneToMany(mappedBy = "topic")
+	@OneToMany(mappedBy = "topic", cascade = CascadeType.ALL, orphanRemoval = true) // cascade cleanup for quizzes
 	private List<Quiz> quizzes = new ArrayList<>();
+
+	// User progress tracking for this topic
+	@OneToMany(mappedBy = "topic", cascade = CascadeType.ALL, orphanRemoval = true) // cascade cleanup for user progress
+	private List<UserProgress> userProgress = new ArrayList<>();
 
 	@PrePersist
 	protected void onCreate() {
@@ -156,6 +167,14 @@ public class Topic {
 
 	public void setRating(double rating) {
 		this.rating = rating;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
 	}
 
 	// Utility methods

@@ -119,6 +119,47 @@ npm run dev
 - `PUT /api/videos/{id}` - Update video
 - `DELETE /api/videos/{id}` - Delete video
 
+### Certificates
+- `POST /api/certificates/generate` - Generate certificate for course completion
+- `GET /api/certificates/user/{userId}` - Get all certificates for a user
+- `GET /api/certificates/verify/{certificateNumber}` - Verify certificate authenticity
+- `GET /api/certificates/check/{userId}/{courseId}` - Check if certificate exists
+
+## Certificate System
+
+LEARNnow features a professional certificate generation system powered by **CraftMyPDF API**:
+
+### Features
+- ✅ **Unique Certificate IDs**: Format `LN-{YEAR}-{COURSE_ABBR}-{RANDOM_6}` (e.g., `LN-2025-PYTHON-72E2D5`)
+- ✅ **LearnNow Branding**: Gen-Z friendly design with course-specific color themes
+- ✅ **Course-Specific Colors**: 5 dynamic color themes (Web Dev, Java, Python, JavaScript, Cloud)
+- ✅ **Downloadable PDFs**: Stored on CraftMyPDF CDN with 1-year expiration
+- ✅ **LinkedIn Integration**: Share certificates directly to LinkedIn
+- ✅ **Public Verification**: Verify certificates by certificate number
+- ✅ **Duplicate Prevention**: One certificate per user per course
+
+### Setup Required
+⚠️ **IMPORTANT**: Before certificates can be generated, you need to:
+
+1. Create a CraftMyPDF template with required fields
+2. Get the template ID from CraftMyPDF dashboard
+3. Update `application.yml` with your template ID
+
+**Quick Setup Guide**: See `CRAFTMYPDF_INTEGRATION.md` for complete instructions
+**Detailed Documentation**: See `docs/CERTIFICATE_SETUP.md`
+
+### Color Themes
+
+Certificates automatically apply course-specific color themes:
+
+| Course Type | Primary Color | Secondary Color |
+|------------|---------------|-----------------|
+| Web Development | Indigo (#6366f1) | Purple (#8b5cf6) |
+| Java/Spring | Green (#10b981) | Teal (#14b8a6) |
+| Python/Data Science | Purple (#8b5cf6) | Orange (#f59e0b) |
+| JavaScript/React | Cyan (#06b6d4) | Blue (#3b82f6) |
+| Cloud Computing | Sky Blue (#0ea5e9) | Indigo (#6366f1) |
+
 ## Architecture
 
 The LEARNnow platform follows a modern architecture with complete separation between the frontend and backend:

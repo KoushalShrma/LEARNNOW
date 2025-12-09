@@ -10,3 +10,18 @@ youtube:
   api:
     key: ${youtube.api.key}
     application-name: ${youtube.api.application-name}
+
+# Groq API configuration
+groq:
+  api:
+    key: ${ai.groq.api-key}
+    url: ${ai.groq.base-url}/chat/completions
+    model: ${ai.groq.model}
+
+# CraftMyPDF API configuration
+certificate:
+  api:
+    url: https://api.craftmypdf.com
+    key: d630MjY1Mzk6MjY2OTE6Yk9vRVl0dFRBNzV1YU5VdQ=
+  template:
+    id: af977b23db7efa1c

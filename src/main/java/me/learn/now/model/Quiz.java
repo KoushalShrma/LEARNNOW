@@ -1,5 +1,6 @@
 package me.learn.now.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class Quiz {
 	// @ManyToOne @JoinColumn(name = "tId") → Many-to-One relation (Quiz → Topic) using foreign key column tId
 	@ManyToOne
 	@JoinColumn(name = "tId")
+	@JsonIgnore // Prevent infinite recursion when serializing to JSON
 	private Topic topic;
 
 	// Hinglish: Quiz ke questions JSON format me store kar rahe hai for simplicity

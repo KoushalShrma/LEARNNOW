@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { X, BookOpen, Target, Globe, Sparkles } from 'lucide-react';
+import { X, BookOpen, Target, Globe, Sparkles, CheckSquare, Square, Lightbulb } from 'lucide-react';
 import { useApiMutation } from '@/hooks/useApi';
-import { topicsAPI, learningPathAPI, youtubeAPI } from '@/lib/api';
+import { topicsAPI, learningPathAPI, youtubeAPI, coursesAPI, videosAPI } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -13,8 +13,11 @@ import toast from 'react-hot-toast';
 
 const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
   const { user } = useAuth();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // 1: Basic info, 2: Subtopic selection, 3: Generating
   const [createdTopic, setCreatedTopic] = useState(null);
+  const [subtopics, setSubtopics] = useState([]);
+  const [selectedSubtopics, setSelectedSubtopics] = useState([]);
+  const [isLoadingSubtopics, setIsLoadingSubtopics] = useState(false);
   const [isGeneratingPath, setIsGeneratingPath] = useState(false);
 
   const {
@@ -52,43 +55,124 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
   ];
 
   const onSubmit = async (data) => {
+    // First, create the topic
     const topicData = {
       name: data.name,
       description: data.description,
       purpose: data.purpose,
       language: data.language,
       level: data.level,
-      estimatedDurationMinutes: 120, // Default 2 hours
+      estimatedDurationMinutes: 120,
       enrolledUsers: 1,
       rating: 0
     };
 
-    createTopicMutation.mutate(topicData);
+    try {
+      const topicResponse = await topicsAPI.create(topicData);
+      setCreatedTopic(topicResponse.data);
+      
+      // Generate subtopics using Groq AI
+      setIsLoadingSubtopics(true);
+      const subtopicsResponse = await coursesAPI.generateSubtopics({
+        topicName: data.name,
+        purpose: data.purpose,
+        level: data.level
+      });
+      
+      setSubtopics(subtopicsResponse.data.subtopics || []);
+      setSelectedSubtopics(subtopicsResponse.data.subtopics || []); // Select all by default
+      setIsLoadingSubtopics(false);
+      setStep(2); // Move to subtopic selection
+    } catch (error) {
+      setIsLoadingSubtopics(false);
+      console.error('Error creating course or generating subtopics:', error);
+      toast.error('Failed to create course. Please try again.');
+    }
+  };
+
+  const toggleSubtopic = (subtopic) => {
+    setSelectedSubtopics(prev => {
+      if (prev.includes(subtopic)) {
+        return prev.filter(s => s !== subtopic);
+      } else {
+        return [...prev, subtopic];
+      }
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSubtopics.length === subtopics.length) {
+      setSelectedSubtopics([]);
+    } else {
+      setSelectedSubtopics([...subtopics]);
+    }
   };
 
   const generateLearningPath = async () => {
-    if (!createdTopic) return;
+    if (!createdTopic || selectedSubtopics.length === 0) {
+      toast.error('Please select at least one subtopic');
+      return;
+    }
 
     setIsGeneratingPath(true);
+    setStep(3); // Move to generating step
+    
     try {
-      // Search for videos related to the topic
-      const searchQuery = createdTopic.name;
-      const videosResponse = await youtubeAPI.search(searchQuery, 8);
+      // Search for TOP 3 BEST YouTube videos for each selected subtopic
+      const allVideos = [];
       
-      if (videosResponse.data && videosResponse.data.length > 0) {
-        // Create videos for the topic
-        const videoPromises = videosResponse.data.slice(0, 6).map((video, index) => {
-          return topicsAPI.create({
+      for (const subtopic of selectedSubtopics) {
+        try {
+          // Create specific search query for this subtopic
+          const searchQuery = `${createdTopic.name} ${subtopic} tutorial`;
+          
+          // Use the BEST MULTIPLE videos endpoint (gets top 1-3 videos)
+          const bestVideosResponse = await youtubeAPI.searchBestMultiple(searchQuery, 3);
+          
+          if (bestVideosResponse.data && bestVideosResponse.data.length > 0) {
+            // Add all best videos for this subtopic
+            bestVideosResponse.data.forEach(video => {
+              allVideos.push({
+                ...video,
+                subtopic
+              });
+            });
+            console.log(`[Best Videos] ${subtopic}: Found ${bestVideosResponse.data.length} quality videos`);
+          } else {
+            console.warn(`[Best Videos] No videos found for subtopic: ${subtopic}`);
+          }
+        } catch (error) {
+          console.error(`Error searching best videos for ${subtopic}:`, error);
+          // Fallback: try single best video if multiple search fails
+          try {
+            const fallbackResponse = await youtubeAPI.searchBest(searchQuery);
+            if (fallbackResponse.data) {
+              allVideos.push({
+                ...fallbackResponse.data,
+                subtopic
+              });
+            }
+          } catch (fallbackError) {
+            console.error(`Fallback search also failed for ${subtopic}`);
+          }
+        }
+      }
+
+      if (allVideos.length > 0) {
+        // Create video records in the database
+        const videoPromises = allVideos.map((video, index) => {
+          return videosAPI.create({
             youtubeId: video.videoId,
             title: video.title,
             channel: video.channelTitle,
             duration: video.duration || 600,
             language: createdTopic.language,
             position: index + 1,
+            subtopic: video.subtopic,
             chaptersJson: JSON.stringify({
               chapters: [
                 { title: 'Introduction', time: 0 },
-                { title: 'Main Content', time: Math.floor((video.duration || 600) * 0.3) },
+                { title: video.subtopic || 'Main Content', time: Math.floor((video.duration || 600) * 0.3) },
                 { title: 'Summary', time: Math.floor((video.duration || 600) * 0.8) }
               ]
             }),
@@ -98,21 +182,22 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
 
         await Promise.all(videoPromises);
         
-        // Create a learning path
-        if (user?.id) {
-          await learningPathAPI.create(user.id, {
-            name: `${createdTopic.name} Learning Path`,
-            description: `Complete learning path for ${createdTopic.name}`,
-            purpose: createdTopic.purpose,
-            language: createdTopic.language,
-            level: createdTopic.level,
-            estimatedHours: Math.ceil(createdTopic.estimatedDurationMinutes / 60),
-            isPublic: false
-          });
-        }
+        // Skip learning path creation for now due to user ID type mismatch
+        // TODO: Implement proper user ID mapping between Clerk (string) and backend (Long)
+        // if (user?.id) {
+        //   await learningPathAPI.create(user.id, {
+        //     name: `${createdTopic.name} Learning Path`,
+        //     description: `Complete learning path for ${createdTopic.name} covering: ${selectedSubtopics.join(', ')}`,
+        //     purpose: createdTopic.purpose,
+        //     language: createdTopic.language,
+        //     level: createdTopic.level,
+        //     estimatedHours: Math.ceil((allVideos.length * 10) / 60), // Estimate 10 min per video
+        //     isPublic: false
+        //   });
+        // }
       }
 
-      toast.success('Learning path created successfully!');
+      toast.success(`Course created with ${allVideos.length} videos! Visit the course page to start learning.`);
       onCourseCreated();
       handleClose();
     } catch (error) {
@@ -126,7 +211,10 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
   const handleClose = () => {
     setStep(1);
     setCreatedTopic(null);
+    setSubtopics([]);
+    setSelectedSubtopics([]);
     setIsGeneratingPath(false);
+    setIsLoadingSubtopics(false);
     reset();
     onClose();
   };
@@ -134,7 +222,7 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="lg">
       <div className="p-6">
-        {step === 1 ? (
+        {step === 1 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -248,64 +336,145 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
                 </Button>
                 <Button
                   type="submit"
-                  loading={createTopicMutation.isLoading}
+                  loading={isLoadingSubtopics}
                   className="min-w-[120px]"
+                  disabled={isLoadingSubtopics}
                 >
-                  Create Course
+                  {isLoadingSubtopics ? 'Generating...' : 'Next: Select Topics'}
                 </Button>
               </div>
             </form>
           </motion.div>
-        ) : (
+        )}
+
+        {step === 2 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center"
           >
-            <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                <Lightbulb className="h-5 w-5 text-primary-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-neutral-900">
+                  Select Subtopics to Learn
+                </h2>
+                <p className="text-sm text-neutral-600 mt-1">
+                  Choose the topics you want to include in your course
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-4 mb-6">
+              <p className="text-sm text-neutral-700">
+                <strong className="text-primary-700">AI-Generated Curriculum</strong> for{' '}
+                <strong>{createdTopic?.name}</strong>
+              </p>
+              <p className="text-xs text-neutral-600 mt-1">
+                Select the subtopics you want to learn. We'll find the best videos for each.
+              </p>
+            </div>
+
+            <div className="mb-4 flex justify-between items-center">
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+              >
+                {selectedSubtopics.length === subtopics.length ? (
+                  <>
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                    Deselect All
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4 mr-1" />
+                    Select All
+                  </>
+                )}
+              </button>
+              <span className="text-sm text-neutral-600">
+                {selectedSubtopics.length} of {subtopics.length} selected
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto mb-6">
+              {subtopics.map((subtopic, index) => (
+                <label
+                  key={index}
+                  className="flex items-start p-4 border border-neutral-200 rounded-lg cursor-pointer hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                >
+                  <div className="flex items-center h-5 mt-0.5">
+                    {selectedSubtopics.includes(subtopic) ? (
+                      <CheckSquare
+                        className="h-5 w-5 text-primary-600"
+                        onClick={() => toggleSubtopic(subtopic)}
+                      />
+                    ) : (
+                      <Square
+                        className="h-5 w-5 text-neutral-400"
+                        onClick={() => toggleSubtopic(subtopic)}
+                      />
+                    )}
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <span className="text-sm font-medium text-neutral-900">
+                      {subtopic}
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-between space-x-3 pt-4 border-t">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep(1)}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={generateLearningPath}
+                disabled={selectedSubtopics.length === 0}
+                className="min-w-[180px]"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Course ({selectedSubtopics.length} topics)
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-8"
+          >
+            <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Sparkles className="h-8 w-8 text-white" />
             </div>
             
             <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
-              Course Created Successfully!
+              Creating Your Learning Path...
             </h2>
             
             <p className="text-neutral-600 mb-8">
-              Your course "{createdTopic?.name}" has been created. 
-              Now let's generate a personalized learning path with curated videos.
+              Finding the best videos for {selectedSubtopics.length} subtopics
             </p>
 
-            <div className="bg-neutral-50 rounded-lg p-6 mb-8">
-              <h3 className="font-medium text-neutral-900 mb-2">What happens next?</h3>
-              <ul className="text-sm text-neutral-600 space-y-2">
-                <li>• AI will break down your topic into key subtopics</li>
-                <li>• Curate the best educational videos from YouTube</li>
-                <li>• Create interactive quizzes for each section</li>
-                <li>• Set up progress tracking and scorecard</li>
+            <div className="bg-neutral-50 rounded-lg p-6">
+              <LoadingSpinner className="mx-auto mb-4" />
+              <ul className="text-sm text-neutral-600 space-y-2 text-left max-w-md mx-auto">
+                <li>• Searching YouTube for top educational content</li>
+                <li>• Curating videos for: {selectedSubtopics.slice(0, 3).join(', ')}
+                  {selectedSubtopics.length > 3 && ` and ${selectedSubtopics.length - 3} more...`}
+                </li>
+                <li>• Creating your personalized learning path</li>
               </ul>
-            </div>
-
-            <div className="flex justify-center space-x-3">
-              <Button
-                variant="ghost"
-                onClick={handleClose}
-              >
-                Skip for Now
-              </Button>
-              <Button
-                onClick={generateLearningPath}
-                loading={isGeneratingPath}
-                className="min-w-[180px]"
-              >
-                {isGeneratingPath ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Generating Path...
-                  </>
-                ) : (
-                  'Create My Learning Path'
-                )}
-              </Button>
             </div>
           </motion.div>
         )}

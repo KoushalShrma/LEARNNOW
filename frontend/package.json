@@ -13,7 +13,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "@clerk/clerk-react": "^6.31.9",
+    "@clerk/clerk-react": "^5.0.0",
     "axios": "^1.6.2",
     "react-query": "^3.39.3",
     "react-hook-form": "^7.48.2",

@@ -1,5 +1,6 @@
 package me.learn.now.controller;
 
+import me.learn.now.dto.VideoDTO;
 import me.learn.now.model.Video;
 import me.learn.now.service.VideoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +16,10 @@ public class VideoController {
     @Autowired
     private VideoService vs; // service layer jahan main logic rakhenge
 
-    // Create video
+    // Create video using DTO
     @PostMapping
-    public ResponseEntity<Video> add(@RequestBody Video v){
-        return ResponseEntity.ok(vs.add(v));
+    public ResponseEntity<Video> add(@RequestBody VideoDTO dto){
+        return ResponseEntity.ok(vs.addFromDTO(dto));
     }
 
     // Get one video by id

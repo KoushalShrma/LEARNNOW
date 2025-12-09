@@ -4,18 +4,25 @@ import toast from 'react-hot-toast';
 
 // Generic API hook for GET requests
 export const useApiQuery = (key, apiFunction, options = {}) => {
-  return useQuery(key, apiFunction, {
-    retry: 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-    onError: (error) => {
-      if (!options.silent) {
-        const message = error.response?.data?.message || 'Failed to fetch data';
-        toast.error(message);
-      }
+  return useQuery(
+    key, 
+    async () => {
+      const response = await apiFunction();
+      return response.data;
     },
-    ...options,
-  });
+    {
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      onError: (error) => {
+        if (!options.silent) {
+          const message = error.response?.data?.message || 'Failed to fetch data';
+          toast.error(message);
+        }
+      },
+      ...options,
+    }
+  );
 };
 
 // Generic API hook for mutations (POST, PUT, DELETE)

@@ -20,18 +20,21 @@ const Dashboard = () => {
     topicsAPI.getAll
   );
 
-  // Fetch user stats
+  // Ensure topics is an array
+  const topicsArray = Array.isArray(topics) ? topics : [];
+
+  // Fetch user stats - Disabled until backend supports Clerk user IDs
   const { data: stats, isLoading: statsLoading } = useApiQuery(
     ['user-stats', user?.id],
     () => dashboardAPI.getStats(user?.id),
-    { enabled: !!user?.id }
+    { enabled: false } // Disabled: backend expects numeric IDs, Clerk provides string IDs
   );
 
-  // Fetch user progress
+  // Fetch user progress - Disabled until backend supports Clerk user IDs
   const { data: progress, isLoading: progressLoading } = useApiQuery(
     ['user-progress', user?.id],
     () => progressAPI.getUserProgress(user?.id),
-    { enabled: !!user?.id }
+    { enabled: false } // Disabled: backend expects numeric IDs, Clerk provides string IDs
   );
 
   const handleCourseCreated = () => {
@@ -42,7 +45,7 @@ const Dashboard = () => {
   const statCards = [
     {
       title: 'Courses Enrolled',
-      value: topics?.length || 0,
+      value: topicsArray.length,
       icon: BookOpen,
       color: 'primary',
     },
@@ -104,7 +107,7 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Stats Grid */}
-        {topics && topics.length > 0 && (
+        {topicsArray.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -140,13 +143,13 @@ const Dashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          {topics && topics.length > 0 ? (
+          {topicsArray.length > 0 ? (
             <div>
               <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
                 Your Courses
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {topics.map((topic, index) => (
+                {topicsArray.map((topic, index) => (
                   <motion.div
                     key={topic.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -156,6 +159,7 @@ const Dashboard = () => {
                     <CourseCard 
                       course={topic} 
                       progress={progress?.find(p => p.topic?.id === topic.id)}
+                      onDelete={refetchTopics}
                     />
                   </motion.div>
                 ))}

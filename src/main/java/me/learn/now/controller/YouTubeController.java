@@ -78,15 +78,43 @@ public class YouTubeController {
     @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
         try {
-            // Hinglish: simple test search kar ke API health check karte hai
-            List<YouTubeVideoDto> testVideos = youTubeService.searchEducationalVideos("programming", 1);
-            if (testVideos != null && !testVideos.isEmpty()) {
-                return ResponseEntity.ok("YouTube API working perfectly! ✅");
+            return ResponseEntity.ok("YouTube API is working fine!");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("YouTube API is not working: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Search and return the BEST video for a topic based on quality scoring
+     * Example: /api/youtube/best?query=javascript functions
+     */
+    @GetMapping("/best")
+    public ResponseEntity<YouTubeVideoDto> searchBestVideo(@RequestParam String query) {
+        try {
+            YouTubeVideoDto bestVideo = youTubeService.searchBestVideo(query);
+            if (bestVideo != null) {
+                return ResponseEntity.ok(bestVideo);
             } else {
-                return ResponseEntity.ok("YouTube API connected but no results 🔍");
+                return ResponseEntity.noContent().build();
             }
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("YouTube API mein problem hai: " + e.getMessage());
+            throw new RuntimeException("Best video fetch karne mein problem: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Search and return TOP 3 best videos for a subtopic
+     * Example: /api/youtube/best-multiple?query=react hooks&max=3
+     */
+    @GetMapping("/best-multiple")
+    public ResponseEntity<List<YouTubeVideoDto>> searchBestVideos(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "3") int max) {
+        try {
+            List<YouTubeVideoDto> bestVideos = youTubeService.searchBestVideos(query, max);
+            return ResponseEntity.ok(bestVideos);
+        } catch (Exception e) {
+            throw new RuntimeException("Best videos fetch karne mein problem: " + e.getMessage());
         }
     }
 }

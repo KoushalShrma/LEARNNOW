@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Play, Clock, BookOpen, Trophy, ChevronRight } from 'lucide-react';
+import { Play, Clock, BookOpen, Trophy, ChevronRight, Trash2 } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useApiMutation } from '@/hooks/useApi';
+import { topicsAPI } from '@/lib/api';
+import toast from 'react-hot-toast';
 
-const CourseCard = ({ course, progress }) => {
+const CourseCard = ({ course, progress, onDelete }) => {
   const getProgressPercentage = () => {
     if (!progress) return 0;
     if (progress.status === 'COMPLETED') return 100;
@@ -29,6 +32,28 @@ const CourseCard = ({ course, progress }) => {
   const progressPercentage = getProgressPercentage();
   const statusColor = getStatusColor();
 
+  const deleteMutation = useApiMutation(
+    () => topicsAPI.delete(course.id),
+    {
+      onSuccess: () => {
+        toast.success('Course deleted successfully');
+        onDelete?.();
+      },
+      onError: () => {
+        toast.error('Failed to delete course');
+      }
+    }
+  );
+
+  const handleDelete = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm(`Are you sure you want to delete "${course.name}"? This action cannot be undone.`)) {
+      deleteMutation.mutate();
+    }
+  };
+
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -46,8 +71,18 @@ const CourseCard = ({ course, progress }) => {
                 {course.description}
               </p>
             </div>
-            <div className={`px-2 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-700`}>
-              {getStatusText()}
+            <div className="flex flex-col items-end space-y-2">
+              <div className={`px-2 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-700`}>
+                {getStatusText()}
+              </div>
+              <button
+                onClick={handleDelete}
+                disabled={deleteMutation.isLoading}
+                className="p-1.5 rounded-full hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                title="Delete course"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           </div>
 

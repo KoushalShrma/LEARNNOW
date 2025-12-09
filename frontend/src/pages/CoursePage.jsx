@@ -9,16 +9,20 @@ import {
   BookOpen, 
   Trophy,
   ChevronRight,
-  Youtube
+  Youtube,
+  Award,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { useApiQuery, useApiMutation } from '@/hooks/useApi';
-import { topicsAPI, progressAPI, quizzesAPI } from '@/lib/api';
+import { topicsAPI, progressAPI, quizzesAPI, certificatesAPI } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import VideoPlayer from '@/components/course/VideoPlayer';
 import QuizModal from '@/components/course/QuizModal';
+import HierarchicalTree from '@/components/course/HierarchicalTree';
 import toast from 'react-hot-toast';
 
 const CoursePage = () => {
@@ -27,6 +31,10 @@ const CoursePage = () => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuiz, setCurrentQuiz] = useState(null);
+  const [certificate, setCertificate] = useState(null);
+  const [hasCertificate, setHasCertificate] = useState(false);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
 
   // Fetch course details
   const { data: course, isLoading: courseLoading } = useApiQuery(
@@ -49,11 +57,14 @@ const CoursePage = () => {
     { enabled: !!courseId }
   );
 
-  // Fetch user progress
+  // Fetch user progress - Disabled until backend supports Clerk user IDs
   const { data: userProgress, refetch: refetchProgress } = useApiQuery(
     ['user-progress-topic', user?.id, courseId],
     () => progressAPI.getByTopic(user?.id, courseId),
-    { enabled: !!user?.id && !!courseId }
+    { 
+      enabled: false, // Disabled: backend expects numeric IDs, Clerk provides string IDs
+      silent: true 
+    }
   );
 
   // Update progress mutation
@@ -125,6 +136,57 @@ const CoursePage = () => {
   const handleVideoSelect = (index) => {
     setCurrentVideoIndex(index);
   };
+
+  // Check if user already has a certificate for this course
+  useEffect(() => {
+    const checkCertificate = async () => {
+      if (!user?.id || !courseId) return;
+      
+      try {
+        const response = await certificatesAPI.check(user.id, courseId);
+        setHasCertificate(response.data?.hasCertificate || false);
+        
+        if (response.data?.hasCertificate) {
+          // Fetch the actual certificate
+          const certResponse = await certificatesAPI.getUserCertificates(user.id);
+          const courseCert = certResponse.data?.find(c => c.courseId === parseInt(courseId));
+          if (courseCert) {
+            setCertificate(courseCert);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking certificate:', error);
+      }
+    };
+
+    checkCertificate();
+  }, [user, courseId]);
+
+  // Generate certificate handler
+  const handleGenerateCertificate = async () => {
+    if (!user?.id || !courseId || !course) return;
+    
+    setGeneratingCertificate(true);
+    try {
+      const userName = user.firstName && user.lastName 
+        ? `${user.firstName} ${user.lastName}`
+        : user.username || 'Learner';
+      
+      const response = await certificatesAPI.generate(user.id, courseId, userName);
+      setCertificate(response.data);
+      setHasCertificate(true);
+      setShowCertificateModal(true);
+      toast.success('Certificate generated successfully!');
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      toast.error('Failed to generate certificate. Please try again.');
+    } finally {
+      setGeneratingCertificate(false);
+    }
+  };
+
+  // Check if all videos are completed (simplified - in production, track actual completion)
+  const allVideosCompleted = currentVideoIndex === videos?.length - 1;
 
   if (courseLoading || videosLoading) {
     return (
@@ -225,54 +287,90 @@ const CoursePage = () => {
                   Course Content
                 </h3>
                 
-                {videos && videos.length > 0 ? (
-                  <div className="space-y-2">
-                    {videos.map((video, index) => (
-                      <motion.div
-                        key={video.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                          index === currentVideoIndex
-                            ? 'bg-primary-50 border border-primary-200'
-                            : 'hover:bg-neutral-50'
-                        }`}
-                        onClick={() => handleVideoSelect(index)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            index < currentVideoIndex
-                              ? 'bg-accent-500 text-white'
-                              : index === currentVideoIndex
-                              ? 'bg-primary-500 text-white'
-                              : 'bg-neutral-200 text-neutral-600'
-                          }`}>
-                            {index < currentVideoIndex ? (
-                              <CheckCircle className="h-4 w-4" />
-                            ) : (
-                              <span className="text-sm font-medium">{index + 1}</span>
-                            )}
-                          </div>
+                {/* Hierarchical Tree View */}
+                <HierarchicalTree
+                  videos={videos}
+                  currentVideoIndex={currentVideoIndex}
+                  onVideoSelect={handleVideoSelect}
+                />
+
+                {/* Certificate Section */}
+                {videos && videos.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    {hasCertificate ? (
+                      /* Already has certificate */
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                        <div className="flex items-start gap-3">
+                          <Award className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
                           <div className="flex-1">
-                            <h4 className="font-medium text-neutral-900 text-sm">
-                              {video.title}
+                            <h4 className="font-semibold text-green-900 mb-1">
+                              Certificate Earned!
                             </h4>
-                            <p className="text-xs text-neutral-500">
-                              {Math.floor((video.duration || 600) / 60)} min
+                            <p className="text-sm text-green-700 mb-3">
+                              {certificate?.certificateNumber}
                             </p>
+                            <a
+                              href={certificate?.certificateUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download Certificate
+                            </a>
                           </div>
-                          {index === currentVideoIndex && (
-                            <ChevronRight className="h-4 w-4 text-primary-600" />
-                          )}
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <BookOpen className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
-                    <p className="text-neutral-600 text-sm">No content available</p>
+                      </div>
+                    ) : allVideosCompleted ? (
+                      /* Can generate certificate */
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border border-indigo-200">
+                        <div className="flex items-start gap-3">
+                          <Trophy className="w-6 h-6 text-indigo-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-indigo-900 mb-1">
+                              Course Completed!
+                            </h4>
+                            <p className="text-sm text-indigo-700 mb-3">
+                              Congratulations! Generate your certificate to showcase your achievement.
+                            </p>
+                            <button
+                              onClick={handleGenerateCertificate}
+                              disabled={generatingCertificate}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Award className="w-4 h-4" />
+                              {generatingCertificate ? 'Generating...' : 'Generate Certificate'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* In progress */
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-start gap-3">
+                          <BookOpen className="w-6 h-6 text-gray-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-1">
+                              Keep Learning
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              Complete all videos to earn your certificate
+                            </p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${((currentVideoIndex + 1) / videos.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {currentVideoIndex + 1}/{videos.length}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -289,6 +387,77 @@ const CoursePage = () => {
           onClose={() => setShowQuiz(false)}
           onComplete={handleQuizComplete}
         />
+      )}
+
+      {/* Certificate Success Modal */}
+      {showCertificateModal && certificate && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl"
+          >
+            {/* Success Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center">
+                <Award className="w-10 h-10 text-white" />
+              </div>
+            </div>
+
+            {/* Content */}
+            <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+              Certificate Generated!
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              Congratulations on completing the course! Your certificate is ready.
+            </p>
+
+            {/* Certificate Details */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 mb-6 border border-indigo-200">
+              <div className="text-center mb-4">
+                <div className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                  Certificate ID
+                </div>
+                <div className="font-mono text-lg font-bold text-indigo-600 select-all">
+                  {certificate.certificateNumber}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Course</div>
+                <div className="font-semibold text-gray-900">{certificate.courseName}</div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <a
+                href={certificate.certificateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </a>
+              <a
+                href={certificate.certificateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors font-semibold"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowCertificateModal(false)}
+              className="w-full mt-4 px-6 py-2.5 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Close
+            </button>
+          </motion.div>
+        </div>
       )}
     </div>
   );

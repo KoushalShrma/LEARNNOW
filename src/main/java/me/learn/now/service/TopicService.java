@@ -1,5 +1,6 @@
 package me.learn.now.service;
 
+import me.learn.now.dto.TopicDTO;
 import me.learn.now.model.Topic;
 import me.learn.now.model.Video;
 import me.learn.now.model.Quiz;
@@ -29,8 +30,21 @@ public class TopicService {
     }
 
 
-    public List<Topic> getTopics() {
-        return tr.findAll();
+    public List<TopicDTO> getTopics() {
+        // Get all topics
+        List<Topic> topics = tr.findAll();
+        
+        // Get video counts in a single query to avoid N+1 problem
+        List<Object[]> videoCounts = tr.findVideoCountsByTopic();
+        Map<Long, Integer> videoCountMap = new HashMap<>();
+        for (Object[] row : videoCounts) {
+            videoCountMap.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        
+        // Convert to DTOs with video counts
+        return topics.stream()
+            .map(topic -> new TopicDTO(topic, videoCountMap.getOrDefault(topic.getId(), 0)))
+            .collect(Collectors.toList());
     }
 
     public Optional<Topic> getTopicById(Long id) {

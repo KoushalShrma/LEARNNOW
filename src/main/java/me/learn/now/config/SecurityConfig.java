@@ -37,6 +37,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         // Hinglish: YouTube API endpoints ko public kar diya demo ke liye
                         .requestMatchers("/api/youtube/**").permitAll()
+                        // Hinglish: Course endpoints ko public kar diya for AI subtopic generation
+                        .requestMatchers("/api/courses/**").permitAll()
+                        // Hinglish: Topics endpoints ko public kar diya
+                        .requestMatchers("/api/topics/**").permitAll()
+                        // Hinglish: Users endpoints ko public kar diya
+                        .requestMatchers("/api/users/**").permitAll()
+                        // Hinglish: Videos endpoints ko public kar diya
+                        .requestMatchers("/api/videos/**").permitAll()
+                        // Hinglish: Learning paths endpoints ko public kar diya
+                        .requestMatchers("/api/learning-paths/**").permitAll()
+                        // Hinglish: Certificate endpoints ko public kar diya
+                        .requestMatchers("/api/certificates/**").permitAll()
                         // Hinglish: Swagger docs ke liye open access
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Hinglish: Root endpoint ko public kar diya testing ke liye

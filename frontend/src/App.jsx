@@ -9,6 +9,10 @@ import Layout from '@/components/layout/Layout';
 import AuthPage from '@/pages/auth/AuthPage';
 import Dashboard from '@/pages/Dashboard';
 import CoursePage from '@/pages/CoursePage';
+import CoursesPage from '@/pages/CoursesPage';
+import ProgressPage from '@/pages/ProgressPage';
+import DiscoverPage from '@/pages/DiscoverPage';
+import Profile from '@/pages/Profile';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -60,6 +64,42 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="courses" 
+                element={
+                  <ProtectedRoute>
+                    <CoursesPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="progress" 
+                element={
+                  <ProtectedRoute>
+                    <ProgressPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="discover" 
+                element={
+                  <ProtectedRoute>
+                    <DiscoverPage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="profile" 
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 } 
               />

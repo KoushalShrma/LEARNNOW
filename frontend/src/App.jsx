@@ -13,6 +13,7 @@ import CoursesPage from '@/pages/CoursesPage';
 import ProgressPage from '@/pages/ProgressPage';
 import DiscoverPage from '@/pages/DiscoverPage';
 import Profile from '@/pages/Profile';
+import CertificatesPage from '@/pages/CertificatesPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -109,6 +110,15 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CoursePage />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="certificates" 
+                element={
+                  <ProtectedRoute>
+                    <CertificatesPage />
                   </ProtectedRoute>
                 } 
               />

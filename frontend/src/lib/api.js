@@ -81,6 +81,19 @@ export const quizzesAPI = {
 };
 
 export const progressAPI = {
+  // New progress API for Clerk users (string IDs)
+  getCourseProgress: (userId, topicId) => api.get(`/api/progress/${userId}/course/${topicId}`),
+  getAllProgress: (userId) => api.get(`/api/progress/${userId}`),
+  markVideoComplete: (userId, topicId, videoIndex) => 
+    api.post(`/api/progress/${userId}/course/${topicId}/video/${videoIndex}`),
+  setCurrentVideo: (userId, topicId, videoIndex) => 
+    api.put(`/api/progress/${userId}/course/${topicId}/current-video`, { videoIndex }),
+  addWatchTime: (userId, topicId, seconds) => 
+    api.post(`/api/progress/${userId}/course/${topicId}/watch-time`, { seconds }),
+  syncProgress: (userId, progressData) => api.post(`/api/progress/${userId}/sync`, progressData),
+  getStats: (userId) => api.get(`/api/progress/${userId}/stats`),
+  
+  // Legacy endpoints (kept for compatibility)
   getUserProgress: (userId) => api.get(`/api/users/${userId}/progress`),
   createProgress: (userId, progressData) => api.post(`/api/users/${userId}/progress`, progressData),
   getProgress: (userId, progressId) => api.get(`/api/users/${userId}/progress/${progressId}`),
@@ -130,7 +143,8 @@ export const learningPathAPI = {
 export const youtubeAPI = {
   search: (query, max = 10) => api.get(`/api/youtube/search?query=${encodeURIComponent(query)}&max=${max}`),
   searchBest: (query) => api.get(`/api/youtube/best?query=${encodeURIComponent(query)}`),
-  searchBestMultiple: (query, max = 3) => api.get(`/api/youtube/best-multiple?query=${encodeURIComponent(query)}&max=${max}`),
+  searchBestMultiple: (query, max = 3, language = 'English') => 
+    api.get(`/api/youtube/best-multiple?query=${encodeURIComponent(query)}&max=${max}&language=${encodeURIComponent(language)}`),
   getPopular: (max = 8) => api.get(`/api/youtube/popular?max=${max}`),
   getByTopic: (topic, max = 6) => api.get(`/api/youtube/topic/${encodeURIComponent(topic)}?max=${max}`),
   healthCheck: () => api.get('/api/youtube/health'),

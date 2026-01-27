@@ -46,6 +46,7 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
     { value: 'Spanish', label: 'Spanish' },
     { value: 'French', label: 'French' },
     { value: 'German', label: 'German' },
+    { value: 'Multi', label: 'Multi-Language (Mixed)' },
   ];
 
   const levelOptions = [
@@ -120,14 +121,15 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
     try {
       // Search for TOP 3 BEST YouTube videos for each selected subtopic
       const allVideos = [];
+      const courseLanguage = createdTopic.language || 'English'; // Get selected language
       
       for (const subtopic of selectedSubtopics) {
         try {
           // Create specific search query for this subtopic
           const searchQuery = `${createdTopic.name} ${subtopic} tutorial`;
           
-          // Use the BEST MULTIPLE videos endpoint (gets top 1-3 videos)
-          const bestVideosResponse = await youtubeAPI.searchBestMultiple(searchQuery, 3);
+          // Use the BEST MULTIPLE videos endpoint with language filter
+          const bestVideosResponse = await youtubeAPI.searchBestMultiple(searchQuery, 3, courseLanguage);
           
           if (bestVideosResponse.data && bestVideosResponse.data.length > 0) {
             // Add all best videos for this subtopic
@@ -137,7 +139,7 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
                 subtopic
               });
             });
-            console.log(`[Best Videos] ${subtopic}: Found ${bestVideosResponse.data.length} quality videos`);
+            console.log(`[Best Videos] ${subtopic} (${courseLanguage}): Found ${bestVideosResponse.data.length} quality videos`);
           } else {
             console.warn(`[Best Videos] No videos found for subtopic: ${subtopic}`);
           }

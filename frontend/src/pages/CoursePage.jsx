@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -35,6 +35,15 @@ const CoursePage = () => {
   const [hasCertificate, setHasCertificate] = useState(false);
   const [generatingCertificate, setGeneratingCertificate] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  
+  // Progress state
+  const [courseProgress, setCourseProgress] = useState({
+    status: 'NOT_STARTED',
+    progressPercentage: 0,
+    completedVideos: [],
+    currentVideoIndex: 0,
+    totalVideos: 0
+  });
 
   // Fetch course details
   const { data: course, isLoading: courseLoading } = useApiQuery(
@@ -57,54 +66,80 @@ const CoursePage = () => {
     { enabled: !!courseId }
   );
 
-  // Fetch user progress - Disabled until backend supports Clerk user IDs
-  const { data: userProgress, refetch: refetchProgress } = useApiQuery(
-    ['user-progress-topic', user?.id, courseId],
-    () => progressAPI.getByTopic(user?.id, courseId),
-    { 
-      enabled: false, // Disabled: backend expects numeric IDs, Clerk provides string IDs
-      silent: true 
-    }
-  );
-
-  // Update progress mutation
-  const updateProgressMutation = useApiMutation(
-    ({ userId, topicId, data }) => progressAPI.setWatchSeconds(userId, topicId, data),
-    {
-      onSuccess: () => {
-        refetchProgress();
+  // Fetch and track progress
+  const fetchProgress = useCallback(async () => {
+    if (!user?.id || !courseId) return;
+    
+    try {
+      const response = await progressAPI.getCourseProgress(user.id, courseId);
+      if (response.data) {
+        setCourseProgress({
+          ...response.data,
+          completedVideos: response.data.completedVideos || []
+        });
+        setCurrentVideoIndex(response.data.currentVideoIndex || 0);
       }
+    } catch (error) {
+      console.log('Progress not found, starting fresh');
     }
-  );
+  }, [user?.id, courseId]);
+
+  useEffect(() => {
+    fetchProgress();
+  }, [fetchProgress]);
 
   const currentVideo = videos?.[currentVideoIndex];
+
+  // Mark video as complete and update progress
+  const markVideoComplete = async (videoIndex) => {
+    if (!user?.id || !courseId) return;
+    
+    try {
+      const response = await progressAPI.markVideoComplete(user.id, courseId, videoIndex);
+      if (response.data) {
+        setCourseProgress({
+          ...response.data,
+          completedVideos: response.data.completedVideos || []
+        });
+        
+        // Show completion toast
+        if (response.data.progressPercentage >= 100) {
+          toast.success('🎉 Course Completed! You can now get your certificate!');
+        }
+      }
+    } catch (error) {
+      console.error('Error marking video complete:', error);
+    }
+  };
+
+  // Update current video position
+  const updateCurrentVideo = async (videoIndex) => {
+    if (!user?.id || !courseId) return;
+    
+    try {
+      await progressAPI.setCurrentVideo(user.id, courseId, videoIndex);
+    } catch (error) {
+      console.error('Error updating current video:', error);
+    }
+  };
 
   const handleVideoComplete = async () => {
     if (!user?.id || !courseId) return;
 
-    try {
-      // Update watch time
-      await updateProgressMutation.mutateAsync({
-        userId: user.id,
-        topicId: courseId,
-        data: (currentVideo?.duration || 600)
-      });
+    // Mark current video as complete
+    await markVideoComplete(currentVideoIndex);
 
-      // Check if there's a quiz for this video
-      const videoQuiz = quizzes?.find(quiz => 
-        quiz.subTopic?.toLowerCase().includes(currentVideo?.title?.toLowerCase().split(' ')[0] || '')
-      );
+    // Check if there's a quiz for this video
+    const videoQuiz = quizzes?.find(quiz => 
+      quiz.subTopic?.toLowerCase().includes(currentVideo?.title?.toLowerCase().split(' ')[0] || '')
+    );
 
-      if (videoQuiz) {
-        setCurrentQuiz(videoQuiz);
-        setShowQuiz(true);
-      } else {
-        // Move to next video if no quiz
-        handleNextVideo();
-      }
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast.error('Failed to update progress');
+    if (videoQuiz) {
+      setCurrentQuiz(videoQuiz);
+      setShowQuiz(true);
+    } else {
+      // Move to next video if no quiz
+      handleNextVideo();
     }
   };
 
@@ -122,20 +157,28 @@ const CoursePage = () => {
 
   const handleNextVideo = () => {
     if (videos && currentVideoIndex < videos.length - 1) {
-      setCurrentVideoIndex(currentVideoIndex + 1);
+      const nextIndex = currentVideoIndex + 1;
+      setCurrentVideoIndex(nextIndex);
+      updateCurrentVideo(nextIndex);
     } else {
       // Course completed
       toast.success('Congratulations! You completed the course!');
-      // Update course status to completed
-      if (user?.id && courseId) {
-        progressAPI.setStatus(user.id, courseId, 'COMPLETED');
-      }
     }
   };
 
   const handleVideoSelect = (index) => {
     setCurrentVideoIndex(index);
+    updateCurrentVideo(index);
   };
+
+  // Check if video is completed
+  const isVideoCompleted = (index) => {
+    return courseProgress.completedVideos?.includes?.(index) || 
+           Array.from(courseProgress.completedVideos || []).includes(index);
+  };
+
+  // Check if all videos are completed
+  const allVideosCompleted = courseProgress.progressPercentage >= 100;
 
   // Check if user already has a certificate for this course
   useEffect(() => {
@@ -184,9 +227,6 @@ const CoursePage = () => {
       setGeneratingCertificate(false);
     }
   };
-
-  // Check if all videos are completed (simplified - in production, track actual completion)
-  const allVideosCompleted = currentVideoIndex === videos?.length - 1;
 
   if (courseLoading || videosLoading) {
     return (
@@ -292,6 +332,7 @@ const CoursePage = () => {
                   videos={videos}
                   currentVideoIndex={currentVideoIndex}
                   onVideoSelect={handleVideoSelect}
+                  isVideoCompleted={isVideoCompleted}
                 />
 
                 {/* Certificate Section */}
@@ -360,11 +401,11 @@ const CoursePage = () => {
                               <div className="flex-1 bg-gray-200 rounded-full h-2">
                                 <div 
                                   className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${((currentVideoIndex + 1) / videos.length) * 100}%` }}
+                                  style={{ width: `${courseProgress.progressPercentage || 0}%` }}
                                 />
                               </div>
                               <span className="text-sm font-semibold text-gray-700">
-                                {currentVideoIndex + 1}/{videos.length}
+                                {courseProgress.completedVideos?.length || 0}/{videos?.length || 0}
                               </span>
                             </div>
                           </div>

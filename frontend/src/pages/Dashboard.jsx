@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BookOpen, Play, Trophy, Clock, TrendingUp, Target } from 'lucide-react';
+import { Plus, BookOpen, Play, Trophy, Clock, TrendingUp, Target, Award } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useApiQuery } from '@/hooks/useApi';
-import { topicsAPI, progressAPI, dashboardAPI } from '@/lib/api';
+import { topicsAPI, progressAPI, certificatesAPI } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -13,6 +14,15 @@ import CourseCard from '@/components/course/CourseCard';
 const Dashboard = () => {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [userProgress, setUserProgress] = useState({});
+  const [userStats, setUserStats] = useState({
+    totalCourses: 0,
+    completedCourses: 0,
+    inProgressCourses: 0,
+    totalWatchTimeMinutes: 0,
+    averageProgress: 0
+  });
+  const [certificates, setCertificates] = useState([]);
   
   // Fetch user's topics/courses
   const { data: topics, isLoading: topicsLoading, refetch: refetchTopics } = useApiQuery(
@@ -23,23 +33,49 @@ const Dashboard = () => {
   // Ensure topics is an array
   const topicsArray = Array.isArray(topics) ? topics : [];
 
-  // Fetch user stats - Disabled until backend supports Clerk user IDs
-  const { data: stats, isLoading: statsLoading } = useApiQuery(
-    ['user-stats', user?.id],
-    () => dashboardAPI.getStats(user?.id),
-    { enabled: false } // Disabled: backend expects numeric IDs, Clerk provides string IDs
-  );
-
-  // Fetch user progress - Disabled until backend supports Clerk user IDs
-  const { data: progress, isLoading: progressLoading } = useApiQuery(
-    ['user-progress', user?.id],
-    () => progressAPI.getUserProgress(user?.id),
-    { enabled: false } // Disabled: backend expects numeric IDs, Clerk provides string IDs
-  );
+  // Fetch user progress and stats when user is available
+  useEffect(() => {
+    const fetchProgressAndStats = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Fetch all progress
+        const progressResponse = await progressAPI.getAllProgress(user.id);
+        setUserProgress(progressResponse.data || {});
+        
+        // Fetch stats
+        const statsResponse = await progressAPI.getStats(user.id);
+        setUserStats(statsResponse.data || {
+          totalCourses: 0,
+          completedCourses: 0,
+          inProgressCourses: 0,
+          totalWatchTimeMinutes: 0,
+          averageProgress: 0
+        });
+        
+        // Fetch certificates
+        const certResponse = await certificatesAPI.getUserCertificates(user.id);
+        setCertificates(certResponse.data || []);
+      } catch (error) {
+        console.error('Error fetching progress:', error);
+      }
+    };
+    
+    fetchProgressAndStats();
+  }, [user?.id, topicsArray.length]);
 
   const handleCourseCreated = () => {
     refetchTopics();
     setShowCreateModal(false);
+  };
+
+  // Get progress for a specific topic
+  const getTopicProgress = (topicId) => {
+    return userProgress[topicId] || {
+      status: 'NOT_STARTED',
+      progressPercentage: 0,
+      currentVideoIndex: 0
+    };
   };
 
   const statCards = [
@@ -48,28 +84,37 @@ const Dashboard = () => {
       value: topicsArray.length,
       icon: BookOpen,
       color: 'primary',
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-600',
     },
     {
       title: 'Completed',
-      value: stats?.completedTopics || 0,
+      value: userStats.completedCourses || 0,
       icon: Trophy,
       color: 'accent',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-600',
     },
     {
       title: 'Study Time',
-      value: `${Math.floor((stats?.totalStudyTimeMinutes || 0) / 60)}h`,
+      value: `${Math.floor((userStats.totalWatchTimeMinutes || 0) / 60)}h ${(userStats.totalWatchTimeMinutes || 0) % 60}m`,
       icon: Clock,
       color: 'secondary',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-600',
     },
     {
-      title: 'Current Streak',
-      value: `${stats?.streakDays || 0} days`,
-      icon: TrendingUp,
+      title: 'Certificates',
+      value: certificates.length,
+      icon: Award,
       color: 'warning',
+      bgColor: 'bg-yellow-100',
+      textColor: 'text-yellow-600',
+      link: '/certificates',
     },
   ];
 
-  if (topicsLoading || statsLoading) {
+  if (topicsLoading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -116,22 +161,27 @@ const Dashboard = () => {
           >
             {statCards.map((stat, index) => {
               const Icon = stat.icon;
+              const CardWrapper = stat.link ? Link : 'div';
+              const wrapperProps = stat.link ? { to: stat.link } : {};
+              
               return (
-                <Card key={stat.title} hover className="relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-600 mb-1">
-                        {stat.title}
-                      </p>
-                      <p className="text-2xl font-bold text-neutral-900">
-                        {stat.value}
-                      </p>
+                <CardWrapper key={stat.title} {...wrapperProps}>
+                  <Card hover className="relative overflow-hidden cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-neutral-600 mb-1">
+                          {stat.title}
+                        </p>
+                        <p className="text-2xl font-bold text-neutral-900">
+                          {stat.value}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                        <Icon className={`h-6 w-6 ${stat.textColor}`} />
+                      </div>
                     </div>
-                    <div className={`p-3 rounded-lg bg-${stat.color}-100`}>
-                      <Icon className={`h-6 w-6 text-${stat.color}-600`} />
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </CardWrapper>
               );
             })}
           </motion.div>
@@ -158,7 +208,7 @@ const Dashboard = () => {
                   >
                     <CourseCard 
                       course={topic} 
-                      progress={progress?.find(p => p.topic?.id === topic.id)}
+                      progress={getTopicProgress(topic.id)}
                       onDelete={refetchTopics}
                     />
                   </motion.div>

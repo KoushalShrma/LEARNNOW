@@ -37,25 +37,50 @@ public class GroqService {
     public List<String> generateSubtopics(String topicName, String purpose, String level) {
         try {
             String prompt = String.format(
-                "Create hierarchical subtopics for '%s' (%s level, Purpose: %s).\\n" +
-                "Format: 'Parent > Child > Grandchild' using ' > ' delimiter.\\n" +
-                "Generate 2-3 levels. Example:\\n" +
-                "React\\n" +
-                "React > Components\\n" +
-                "React > Hooks\\n" +
-                "React > Hooks > useState\\n" +
-                "React > Hooks > useEffect\\n" +
-                "\\n" +
-                "Rules:\\n" +
-                "1. Level 1: Major topics (HTML, CSS, JavaScript, React, etc.)\\n" +
-                "2. Level 2: Core concepts (React > Components, CSS > Flexbox)\\n" +
-                "3. Level 3+: Specific topics (React > Hooks > useState)\\n" +
-                "4. NO forbidden names: Introduction, Fundamentals, Basics, Overview, Best Practices\\n" +
-                "5. Only technical concepts\\n" +
-                "\\n" +
-                "Output: One path per line, no numbering.",
-                topicName, level, purpose
+                "Generate a COMPLETE and DEEP learning curriculum for EXACTLY '%s'.\\n" +
+                "This curriculum must be sufficient for someone to MASTER '%s' professionally.\\n\\n" +
+
+                "Level: %s\\n" +
+                
+                "Learning Purpose: %s\\n\\n" +
+                "• Generate topics ONLY if they are INTRINSIC to '%s' itself.\\n" +
+                "CRITICAL SCOPE RULES:\\n" +
+                "• Do NOT include adjacent tools, frameworks, or ecosystems unless they are             a CORE part of '%s'.\\n" +
+                "• Do NOT broaden or generalize the topic. Stay strictly within '%s'.           \\n\\n" +
+
+                "STRUCTURE RULES:\\n" +
+                "• Use hierarchical paths with the format: Parent > Child > Grandchild\\n" +
+                "• Use ' > ' as the ONLY delimiter\\n" +
+                "• Level 1 MUST ALWAYS be exactly '%s'\\n" +
+                "• Generate deeper levels ONLY when the concept logically requires it\\n" +
+                "• Avoid shallow trees — depth is preferred over breadth where necessary\\n\\n" +
+
+                "CONTENT DEPTH REQUIREMENTS:\\n" +
+                "• Cover ALL core internal concepts required to master '%s'\\n" +
+                "• Include architecture, internal mechanics, APIs, lifecycles, patterns, and edge cases\\n" +
+                "• Include performance, scalability, limitations, and real-world usage aspects WHEN they are topic-specific\\n" +
+                "• If a subtopic has meaningful internal components, break it into children\\n\\n" +
+
+                "STRICT EXCLUSIONS:\\n" +
+                "• NO generic headings: Introduction, Basics, Fundamentals, Overview, Getting Started\\n" +
+                "• NO learning advice or non-technical sections\\n" +
+                "• NO marketing or conceptual fluff\\n" +
+                "• NO cross-topic teaching (e.g., Spring Boot when topic is Spring AI)\\n\\n" +
+
+                "OUTPUT CONSTRAINTS:\\n" +
+                "• Generate 10–16 total paths\\n" +
+                "• Each path must be meaningful and non-overlapping\\n" +
+                "• One path per line\\n" +
+                "• No numbering, no bullets, no explanations\\n\\n" +
+
+                "QUALITY CHECK (MANDATORY):\\n" +
+                "Before outputting, verify that removing ANY line would reduce mastery of   '%s'.\\n\\n" +
+
+                "Output ONLY the curriculum paths.",
+                topicName, topicName, level, purpose,
+                topicName, topicName, topicName, topicName, topicName
             );
+
 
             Map<String, Object> requestBody = Map.of(
                 "model", model,
@@ -118,6 +143,78 @@ public class GroqService {
     private List<String> getDefaultSubtopics(String topicName) {
         String lower = topicName.toLowerCase();
         
+        // Check for SPECIFIC topics FIRST (before generic matches)
+        // Spring AI - must come before generic "spring" check
+        if (lower.contains("spring ai") || lower.contains("springai")) {
+            return List.of(
+                "Spring AI",
+                "Spring AI > Chat Models",
+                "Spring AI > Chat Models > OpenAI Integration",
+                "Spring AI > Chat Models > Ollama Integration",
+                "Spring AI > Embeddings",
+                "Spring AI > Embeddings > Text Embeddings",
+                "Spring AI > Vector Stores",
+                "Spring AI > Vector Stores > PGVector",
+                "Spring AI > Vector Stores > ChromaDB",
+                "Spring AI > Prompt Templates",
+                "Spring AI > Prompt Templates > Template Variables",
+                "Spring AI > RAG (Retrieval Augmented Generation)",
+                "Spring AI > RAG > Document Loaders",
+                "Spring AI > Function Calling",
+                "Spring AI > Output Parsers"
+            );
+        }
+        
+        // LangChain
+        if (lower.contains("langchain")) {
+            return List.of(
+                "LangChain",
+                "LangChain > LLM Integration",
+                "LangChain > LLM Integration > OpenAI",
+                "LangChain > Prompts",
+                "LangChain > Prompts > Templates",
+                "LangChain > Chains",
+                "LangChain > Chains > Sequential Chains",
+                "LangChain > Agents",
+                "LangChain > Agents > Tools",
+                "LangChain > Memory",
+                "LangChain > Vector Stores",
+                "LangChain > RAG"
+            );
+        }
+        
+        // Machine Learning / AI
+        if (lower.contains("machine learning") || lower.contains("ml") || (lower.contains("ai") && !lower.contains("spring"))) {
+            return List.of(
+                "Machine Learning",
+                "Machine Learning > Supervised Learning",
+                "Machine Learning > Supervised Learning > Regression",
+                "Machine Learning > Supervised Learning > Classification",
+                "Machine Learning > Unsupervised Learning",
+                "Machine Learning > Unsupervised Learning > Clustering",
+                "Machine Learning > Neural Networks",
+                "Machine Learning > Neural Networks > Deep Learning",
+                "Machine Learning > Model Evaluation",
+                "Machine Learning > Feature Engineering"
+            );
+        }
+        
+        // Deep Learning
+        if (lower.contains("deep learning") || lower.contains("neural network")) {
+            return List.of(
+                "Deep Learning",
+                "Deep Learning > Neural Network Basics",
+                "Deep Learning > CNNs (Convolutional Neural Networks)",
+                "Deep Learning > RNNs (Recurrent Neural Networks)",
+                "Deep Learning > Transformers",
+                "Deep Learning > Transformers > Attention Mechanism",
+                "Deep Learning > GANs",
+                "Deep Learning > Transfer Learning",
+                "Deep Learning > PyTorch",
+                "Deep Learning > TensorFlow"
+            );
+        }
+        
         // Topic-specific hierarchical technical subtopics
         if (lower.contains("web") || lower.contains("html") || lower.contains("frontend")) {
             return List.of(
@@ -156,17 +253,32 @@ public class GroqService {
                 "Data Structures > Lists",
                 "Data Structures > Dictionaries"
             );
-        } else if (lower.contains("spring")) {
+        } else if (lower.contains("spring boot") || lower.contains("springboot")) {
             return List.of(
-                "Spring Boot Basics",
-                "Spring Boot Basics > Project Setup",
-                "Spring Boot Basics > Auto-Configuration",
-                "Dependency Injection",
-                "Dependency Injection > Beans",
-                "REST APIs",
-                "REST APIs > Controllers",
-                "Spring Data JPA",
-                "Spring Data JPA > Repositories"
+                "Spring Boot",
+                "Spring Boot > Project Setup",
+                "Spring Boot > Auto-Configuration",
+                "Spring Boot > Dependency Injection",
+                "Spring Boot > Dependency Injection > Beans",
+                "Spring Boot > REST APIs",
+                "Spring Boot > REST APIs > Controllers",
+                "Spring Boot > Spring Data JPA",
+                "Spring Boot > Spring Data JPA > Repositories",
+                "Spring Boot > Security",
+                "Spring Boot > Actuator"
+            );
+        } else if (lower.contains("spring") && !lower.contains("ai")) {
+            // Generic Spring (not Spring AI)
+            return List.of(
+                "Spring Framework",
+                "Spring Framework > IoC Container",
+                "Spring Framework > Dependency Injection",
+                "Spring Framework > Beans",
+                "Spring Framework > AOP",
+                "Spring Framework > Spring MVC",
+                "Spring Framework > Spring MVC > Controllers",
+                "Spring Framework > Spring Security",
+                "Spring Framework > Spring Data"
             );
         } else if (lower.contains("react")) {
             return List.of(

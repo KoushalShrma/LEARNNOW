@@ -103,15 +103,17 @@ public class YouTubeController {
     }
     
     /**
-     * Search and return TOP 3 best videos for a subtopic
-     * Example: /api/youtube/best-multiple?query=react hooks&max=3
+     * Search and return TOP 3 best videos for a subtopic with language filter
+     * Example: /api/youtube/best-multiple?query=react hooks&max=3&language=Hindi
+     * Language options: English, Hindi, Spanish, French, German, Multi (mixed)
      */
     @GetMapping("/best-multiple")
     public ResponseEntity<List<YouTubeVideoDto>> searchBestVideos(
             @RequestParam String query,
-            @RequestParam(defaultValue = "3") int max) {
+            @RequestParam(defaultValue = "3") int max,
+            @RequestParam(defaultValue = "English") String language) {
         try {
-            List<YouTubeVideoDto> bestVideos = youTubeService.searchBestVideos(query, max);
+            List<YouTubeVideoDto> bestVideos = youTubeService.searchBestVideos(query, max, language);
             return ResponseEntity.ok(bestVideos);
         } catch (Exception e) {
             throw new RuntimeException("Best videos fetch karne mein problem: " + e.getMessage());

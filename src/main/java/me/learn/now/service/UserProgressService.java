@@ -234,4 +234,89 @@ public class UserProgressService {
             return setStatusByTopic(userId, topicId, ProgressStatus.IN_PROGRESS);
         }
     }
+
+    // Hinglish: video complete hone pe progress update karne ke liye
+    public UserProgress updateVideoCompletion(Long userId, Long topicId, int completedVideos, int totalVideos) {
+        Optional<UserProgress> existing = getByTopic(userId, topicId);
+        
+        // Calculate progress percentage
+        int progressPercentage = totalVideos > 0 ? (completedVideos * 100) / totalVideos : 0;
+        
+        // Determine status based on progress
+        ProgressStatus status;
+        if (progressPercentage >= 100) {
+            status = ProgressStatus.COMPLETED;
+        } else if (progressPercentage > 0) {
+            status = ProgressStatus.IN_PROGRESS;
+        } else {
+            status = ProgressStatus.NOT_STARTED;
+        }
+
+        UserProgress progress;
+        if (existing.isPresent()) {
+            progress = existing.get();
+        } else {
+            progress = new UserProgress();
+            User user = ur.findById(userId).orElseThrow(() -> new NoSuchElementException("User not found"));
+            Topic topic = tr.findById(topicId).orElseThrow(() -> new NoSuchElementException("Topic not found"));
+            progress.setUser(user);
+            progress.setTopic(topic);
+            progress.setCreateAt(LocalDateTime.now());
+        }
+
+        progress.setStatus(status);
+        progress.setProgressPercentage(progressPercentage);
+        progress.setLastSeenAt(LocalDateTime.now());
+        progress.setUpdateAt(LocalDateTime.now());
+
+        return upr.save(progress);
+    }
+
+    // Hinglish: course ka overall progress get karne ke liye with detailed stats
+    public CourseProgressDTO getCourseProgress(Long userId, Long topicId) {
+        Optional<UserProgress> progressOpt = getByTopic(userId, topicId);
+        
+        CourseProgressDTO dto = new CourseProgressDTO();
+        dto.setTopicId(topicId);
+        dto.setUserId(userId);
+        
+        if (progressOpt.isPresent()) {
+            UserProgress progress = progressOpt.get();
+            dto.setStatus(progress.getStatus().name());
+            dto.setProgressPercentage(progress.getProgressPercentage());
+            dto.setSecondsWatched(progress.getSecondsWatched() != null ? progress.getSecondsWatched() : 0);
+            dto.setLastSeenAt(progress.getLastSeenAt());
+        } else {
+            dto.setStatus(ProgressStatus.NOT_STARTED.name());
+            dto.setProgressPercentage(0);
+            dto.setSecondsWatched(0);
+            dto.setLastSeenAt(null);
+        }
+        
+        return dto;
+    }
+
+    // Inner DTO class for course progress
+    public static class CourseProgressDTO {
+        private Long topicId;
+        private Long userId;
+        private String status;
+        private int progressPercentage;
+        private int secondsWatched;
+        private LocalDateTime lastSeenAt;
+
+        // Getters and setters
+        public Long getTopicId() { return topicId; }
+        public void setTopicId(Long topicId) { this.topicId = topicId; }
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public int getProgressPercentage() { return progressPercentage; }
+        public void setProgressPercentage(int progressPercentage) { this.progressPercentage = progressPercentage; }
+        public int getSecondsWatched() { return secondsWatched; }
+        public void setSecondsWatched(int secondsWatched) { this.secondsWatched = secondsWatched; }
+        public LocalDateTime getLastSeenAt() { return lastSeenAt; }
+        public void setLastSeenAt(LocalDateTime lastSeenAt) { this.lastSeenAt = lastSeenAt; }
+    }
 }

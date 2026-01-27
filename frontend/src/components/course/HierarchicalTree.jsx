@@ -44,7 +44,7 @@ const buildHierarchicalTree = (videos) => {
 /**
  * Recursive tree node component
  */
-const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
+const TreeNode = ({ node, currentVideoIndex, onVideoSelect, isVideoCompleted, depth = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(depth === 0); // Auto-expand Level 1
   
   const hasChildren = Object.keys(node.children).length > 0;
@@ -53,7 +53,9 @@ const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
   
   // Check if any child video is current
   const isActive = node.videos.some(v => v.globalIndex === currentVideoIndex);
-  const isCompleted = node.videos.every(v => v.globalIndex < currentVideoIndex);
+  // Use the isVideoCompleted function if provided, otherwise fallback to index-based check
+  const checkCompleted = isVideoCompleted || ((idx) => idx < currentVideoIndex);
+  const isCompleted = node.videos.every(v => checkCompleted(v.globalIndex));
   
   const toggleExpand = () => {
     if (hasChildren || hasVideos) {
@@ -148,6 +150,7 @@ const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
                     node={child}
                     currentVideoIndex={currentVideoIndex}
                     onVideoSelect={onVideoSelect}
+                    isVideoCompleted={isVideoCompleted}
                     depth={depth + 1}
                   />
                 ))}
@@ -157,7 +160,9 @@ const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
             {/* Render videos if this is a leaf node */}
             {isLeaf && hasVideos && (
               <div className="space-y-1 mt-1">
-                {node.videos.map((video) => (
+                {node.videos.map((video) => {
+                  const videoCompleted = checkCompleted(video.globalIndex);
+                  return (
                   <motion.div
                     key={video.id}
                     initial={{ opacity: 0, x: -10 }}
@@ -177,13 +182,13 @@ const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
                   >
                     {/* Video Status Icon */}
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      video.globalIndex < currentVideoIndex
+                      videoCompleted
                         ? 'bg-accent-500 text-white'
                         : video.globalIndex === currentVideoIndex
                         ? 'bg-primary-600 text-white'
                         : 'bg-neutral-200 text-neutral-600'
                     }`}>
-                      {video.globalIndex < currentVideoIndex ? (
+                      {videoCompleted ? (
                         <CheckCircle className="h-3 w-3" />
                       ) : (
                         <Play className="h-3 w-3" />
@@ -206,7 +211,8 @@ const TreeNode = ({ node, currentVideoIndex, onVideoSelect, depth = 0 }) => {
                       <ChevronRight className="h-4 w-4 text-primary-600 flex-shrink-0" />
                     )}
                   </motion.div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -230,7 +236,7 @@ const countVideos = (node) => {
 /**
  * Main hierarchical tree component
  */
-const HierarchicalTree = ({ videos, currentVideoIndex, onVideoSelect }) => {
+const HierarchicalTree = ({ videos, currentVideoIndex, onVideoSelect, isVideoCompleted }) => {
   if (!videos || videos.length === 0) {
     return (
       <div className="text-center py-8">
@@ -250,6 +256,7 @@ const HierarchicalTree = ({ videos, currentVideoIndex, onVideoSelect }) => {
           node={node}
           currentVideoIndex={currentVideoIndex}
           onVideoSelect={onVideoSelect}
+          isVideoCompleted={isVideoCompleted}
           depth={0}
         />
       ))}

@@ -352,11 +352,14 @@ public class YouTubeService {
     }
     
     /**
-     * Search and select TOP 3 best videos for a subtopic
+     * Search and select TOP 3 best videos for a subtopic with language filtering
      * Returns 1-3 videos based on quality and diversity
+     * @param keyword - search keyword
+     * @param maxResults - max videos to return (1-3)
+     * @param language - language preference: English, Hindi, Spanish, French, German, Multi
      */
-    public List<YouTubeVideoDto> searchBestVideos(String keyword, int maxResults) {
-        List<YouTubeVideoDto> candidates = searchEducationalVideos(keyword, Math.min(maxResults, 10));
+    public List<YouTubeVideoDto> searchBestVideos(String keyword, int maxResults, String language) {
+        List<YouTubeVideoDto> candidates = searchEducationalVideosByLanguage(keyword, Math.max(maxResults * 5, 15), language);
         
         if (candidates == null || candidates.isEmpty()) {
             return new ArrayList<>();
@@ -366,6 +369,10 @@ public class YouTubeService {
         List<VideoScore> scoredVideos = new ArrayList<>();
         for (YouTubeVideoDto video : candidates) {
             double score = calculateVideoQualityScore(video);
+            // Boost score for language-matching videos
+            if (isVideoInLanguage(video, language)) {
+                score += 15; // Language match bonus
+            }
             scoredVideos.add(new VideoScore(video, score));
         }
         
@@ -378,11 +385,188 @@ public class YouTubeService {
         
         for (int i = 0; i < count; i++) {
             bestVideos.add(scoredVideos.get(i).video);
-            System.out.println(String.format("[YouTube Selection] #%d: %s (Score: %.1f/100)", 
-                i + 1, scoredVideos.get(i).video.getTitle(), scoredVideos.get(i).score));
+            System.out.println(String.format("[YouTube Selection] #%d: %s (Score: %.1f/100, Lang: %s)", 
+                i + 1, scoredVideos.get(i).video.getTitle(), scoredVideos.get(i).score, language));
         }
         
         return bestVideos;
+    }
+    
+    /**
+     * Search educational videos with language filtering
+     * Supports: English, Hindi, Spanish, French, German, Multi (mixed)
+     */
+    public List<YouTubeVideoDto> searchEducationalVideosByLanguage(String keyword, int maxResults, String language) {
+        try {
+            if (youTube == null) {
+                initializeYouTubeService();
+            }
+
+            String searchQuery;
+            String relevanceLanguage;
+            
+            // Build language-specific search query
+            switch (language.toLowerCase()) {
+                case "hindi":
+                    searchQuery = keyword + " tutorial in hindi हिंदी";
+                    relevanceLanguage = "hi";
+                    break;
+                case "spanish":
+                    searchQuery = keyword + " tutorial en español";
+                    relevanceLanguage = "es";
+                    break;
+                case "french":
+                    searchQuery = keyword + " tutoriel en français";
+                    relevanceLanguage = "fr";
+                    break;
+                case "german":
+                    searchQuery = keyword + " tutorial auf deutsch";
+                    relevanceLanguage = "de";
+                    break;
+                case "multi":
+                    // Multi-language: search without language filter, get mixed results
+                    searchQuery = keyword + " tutorial course";
+                    relevanceLanguage = null; // No language filter
+                    break;
+                case "english":
+                default:
+                    searchQuery = keyword + " tutorial course explained";
+                    relevanceLanguage = "en";
+                    break;
+            }
+
+            YouTube.Search.List search = youTube.search().list(List.of("snippet"));
+            search.setKey(apiKey);
+            search.setQ(searchQuery);
+            search.setType(List.of("video"));
+            search.setMaxResults((long) Math.min(maxResults, 50));
+            search.setOrder("relevance");
+            search.setVideoDefinition("high");
+            search.setVideoCategoryId("27"); // Education category
+            search.setVideoEmbeddable("true");
+            search.setVideoSyndicated("true");
+            search.setSafeSearch("strict");
+            
+            // Set relevance language if not Multi
+            if (relevanceLanguage != null) {
+                search.setRelevanceLanguage(relevanceLanguage);
+            }
+
+            SearchListResponse searchResponse = search.execute();
+            List<SearchResult> searchResults = searchResponse.getItems();
+
+            System.out.println("[YouTube Search] Query: " + searchQuery + ", Language: " + language + 
+                             ", Found " + (searchResults != null ? searchResults.size() : 0) + " results");
+
+            List<YouTubeVideoDto> videos = new ArrayList<>();
+
+            for (SearchResult result : searchResults) {
+                String title = result.getSnippet().getTitle().toLowerCase();
+                
+                // Skip roadmap, career, and motivational videos
+                if (title.contains("roadmap") || title.contains("career path") || 
+                    title.contains("how to become") || title.contains("should you learn") ||
+                    title.contains("vs ") && title.contains("which") ||
+                    title.contains("top 10") || title.contains("best 10")) {
+                    continue;
+                }
+                
+                // Skip music, songs, and shorts
+                if (title.contains(" song") || title.contains(" music ") || 
+                    title.contains(" lyrics") || title.contains("#shorts")) {
+                    continue;
+                }
+                
+                // Language validation for specific language requests (not Multi)
+                if (!language.equalsIgnoreCase("multi") && !isVideoMatchingLanguage(result, language)) {
+                    continue;
+                }
+                
+                YouTubeVideoDto video = new YouTubeVideoDto();
+                video.setVideoId(result.getId().getVideoId());
+                video.setTitle(result.getSnippet().getTitle());
+                video.setDescription(result.getSnippet().getDescription());
+                video.setChannelTitle(result.getSnippet().getChannelTitle());
+                video.setPublishedAt(result.getSnippet().getPublishedAt().toString());
+
+                if (result.getSnippet().getThumbnails() != null &&
+                    result.getSnippet().getThumbnails().getMedium() != null) {
+                    video.setThumbnailUrl(result.getSnippet().getThumbnails().getMedium().getUrl());
+                }
+
+                video.setVideoUrl("https://www.youtube.com/watch?v=" + video.getVideoId());
+                videos.add(video);
+            }
+
+            fetchVideoStatistics(videos);
+            return videos;
+
+        } catch (Exception e) {
+            System.err.println("Error searching videos by language: " + e.getMessage());
+            // Fallback to default search
+            return searchEducationalVideos(keyword, maxResults);
+        }
+    }
+    
+    /**
+     * Check if video matches the requested language based on title/channel
+     */
+    private boolean isVideoMatchingLanguage(SearchResult result, String language) {
+        String title = result.getSnippet().getTitle().toLowerCase();
+        String channel = result.getSnippet().getChannelTitle().toLowerCase();
+        String description = result.getSnippet().getDescription().toLowerCase();
+        
+        switch (language.toLowerCase()) {
+            case "hindi":
+                // Check for Hindi indicators
+                return title.contains("hindi") || title.contains("हिंदी") ||
+                       channel.contains("hindi") || channel.contains("apna college") ||
+                       channel.contains("codewithharry") || channel.contains("chai aur code") ||
+                       channel.contains("hitesh") || channel.contains("telusko") ||
+                       description.contains("hindi") || description.contains("हिंदी");
+            case "spanish":
+                return title.contains("español") || title.contains("spanish") ||
+                       description.contains("español");
+            case "french":
+                return title.contains("français") || title.contains("french") ||
+                       description.contains("français");
+            case "german":
+                return title.contains("deutsch") || title.contains("german") ||
+                       description.contains("deutsch");
+            case "english":
+                // English: exclude non-English indicators
+                return !title.contains("hindi") && !title.contains("हिंदी") &&
+                       !title.contains("español") && !title.contains("français") &&
+                       !title.contains("deutsch");
+            default:
+                return true; // Multi or unknown - accept all
+        }
+    }
+    
+    /**
+     * Check if a video DTO matches the language
+     */
+    private boolean isVideoInLanguage(YouTubeVideoDto video, String language) {
+        String title = video.getTitle().toLowerCase();
+        String channel = video.getChannelTitle().toLowerCase();
+        
+        switch (language.toLowerCase()) {
+            case "hindi":
+                return title.contains("hindi") || title.contains("हिंदी") ||
+                       channel.contains("hindi") || channel.contains("apna college") ||
+                       channel.contains("codewithharry") || channel.contains("chai");
+            case "spanish":
+                return title.contains("español") || title.contains("spanish");
+            case "french":
+                return title.contains("français") || title.contains("french");
+            case "german":
+                return title.contains("deutsch") || title.contains("german");
+            case "english":
+                return !title.contains("hindi") && !title.contains("español") &&
+                       !title.contains("français") && !title.contains("deutsch");
+            default:
+                return true;
+        }
     }
     
     /**

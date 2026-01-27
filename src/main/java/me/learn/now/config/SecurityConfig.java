@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/learning-paths/**").permitAll()
                         // Hinglish: Certificate endpoints ko public kar diya
                         .requestMatchers("/api/certificates/**").permitAll()
+                        // Hinglish: Progress endpoints ko public kar diya
+                        .requestMatchers("/api/progress/**").permitAll()
                         // Hinglish: Swagger docs ke liye open access
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Hinglish: Root endpoint ko public kar diya testing ke liye

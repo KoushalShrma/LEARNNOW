@@ -3,11 +3,12 @@ spring:
     name: LEARNnow
 
   # Database configuration (use environment variables)
+  # Supports both PostgreSQL (Neon/Supabase - FREE) and MySQL
   datasource:
-    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/learnnow}
-    username: ${DATABASE_USERNAME:root}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/learnnow}
+    username: ${DATABASE_USERNAME:postgres}
     password: ${DATABASE_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
 
   jpa:
     hibernate:
@@ -15,7 +16,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: ${DATABASE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
 
 # Server configuration
 server:

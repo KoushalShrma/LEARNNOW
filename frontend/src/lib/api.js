@@ -49,6 +49,7 @@ api.interceptors.response.use(
 // API endpoints
 export const topicsAPI = {
   getAll: () => api.get('/api/topics'),
+  getByUser: (userId) => api.get(`/api/topics/user/${userId}`),
   getById: (id) => api.get(`/api/topics/${id}`),
   create: (topicData) => api.post('/api/topics', topicData),
   update: (id, topicData) => api.put(`/api/topics/${id}`, topicData),

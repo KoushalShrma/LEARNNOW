@@ -15,6 +15,8 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [userProgress, setUserProgress] = useState({});
+  const [topics, setTopics] = useState([]);
+  const [topicsLoading, setTopicsLoading] = useState(true);
   const [userStats, setUserStats] = useState({
     totalCourses: 0,
     completedCourses: 0,
@@ -23,12 +25,25 @@ const Dashboard = () => {
     averageProgress: 0
   });
   const [certificates, setCertificates] = useState([]);
-  
-  // Fetch user's topics/courses
-  const { data: topics, isLoading: topicsLoading, refetch: refetchTopics } = useApiQuery(
-    'topics',
-    topicsAPI.getAll
-  );
+
+  // Fetch user's topics/courses - only for this user
+  const fetchUserTopics = async () => {
+    if (!user?.id) return;
+    setTopicsLoading(true);
+    try {
+      const response = await topicsAPI.getByUser(user.id);
+      setTopics(response.data || []);
+    } catch (error) {
+      console.error('Error fetching user topics:', error);
+      setTopics([]);
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserTopics();
+  }, [user?.id]);
 
   // Ensure topics is an array
   const topicsArray = Array.isArray(topics) ? topics : [];
@@ -65,7 +80,7 @@ const Dashboard = () => {
   }, [user?.id, topicsArray.length]);
 
   const handleCourseCreated = () => {
-    refetchTopics();
+    fetchUserTopics();
     setShowCreateModal(false);
   };
 

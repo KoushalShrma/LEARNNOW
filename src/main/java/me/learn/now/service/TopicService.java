@@ -47,6 +47,22 @@ public class TopicService {
             .collect(Collectors.toList());
     }
 
+    // Get topics by user ID (Clerk user ID)
+    public List<TopicDTO> getTopicsByUserId(String userId) {
+        List<Topic> topics = tr.findByCreatedByUserId(userId);
+        
+        // Get video counts
+        List<Object[]> videoCounts = tr.findVideoCountsByTopic();
+        Map<Long, Integer> videoCountMap = new HashMap<>();
+        for (Object[] row : videoCounts) {
+            videoCountMap.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        
+        return topics.stream()
+            .map(topic -> new TopicDTO(topic, videoCountMap.getOrDefault(topic.getId(), 0)))
+            .collect(Collectors.toList());
+    }
+
     public Optional<Topic> getTopicById(Long id) {
         return tr.findById(id);
     }

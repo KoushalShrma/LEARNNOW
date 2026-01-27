@@ -29,6 +29,12 @@ public class TopicController {
         return ResponseEntity.ok(ts.getTopics());
     }
 
+    // Get topics created by a specific user (Clerk user ID)
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<TopicDTO>> getTopicsByUser(@PathVariable String userId){
+        return ResponseEntity.ok(ts.getTopicsByUserId(userId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Topic> getTopicById(@PathVariable Long id){
         Optional<Topic> t = ts.getTopicById(id);

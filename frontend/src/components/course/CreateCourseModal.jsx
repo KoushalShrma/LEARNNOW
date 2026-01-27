@@ -56,7 +56,7 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
   ];
 
   const onSubmit = async (data) => {
-    // First, create the topic
+    // First, create the topic with user ID
     const topicData = {
       name: data.name,
       description: data.description,
@@ -65,7 +65,8 @@ const CreateCourseModal = ({ isOpen, onClose, onCourseCreated }) => {
       level: data.level,
       estimatedDurationMinutes: 120,
       enrolledUsers: 1,
-      rating: 0
+      rating: 0,
+      createdByUserId: user?.id  // Store Clerk user ID
     };
 
     try {

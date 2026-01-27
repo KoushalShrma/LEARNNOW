@@ -15,4 +15,8 @@ public interface TopicRepo extends JpaRepository<Topic, Long> {
     // Get video count for each topic using a native SQL query to avoid N+1 problem
     @Query(value = "SELECT t_id as topicId, COUNT(*) as count FROM video GROUP BY t_id", nativeQuery = true)
     List<Object[]> findVideoCountsByTopic();
+    
+    // Find topics created by a specific user (using Clerk user ID stored as string)
+    @Query("SELECT t FROM Topic t WHERE t.createdByUserId = :userId")
+    List<Topic> findByCreatedByUserId(@Param("userId") String userId);
 }

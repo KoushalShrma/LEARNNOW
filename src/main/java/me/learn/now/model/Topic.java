@@ -24,6 +24,10 @@ public class Topic {
 	private int estimatedDurationMinutes;
 	private int enrolledUsers;
 	private double rating;
+	
+	// Clerk user ID who created this topic (string format from Clerk)
+	@Column(name = "created_by_user_id")
+	private String createdByUserId;
 
 	// Hinglish: har topic ka ek owner/creator user hota hai
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -175,6 +179,14 @@ public class Topic {
 
 	public void setUser(User user) {
 		this.user = user;
+	}
+
+	public String getCreatedByUserId() {
+		return createdByUserId;
+	}
+
+	public void setCreatedByUserId(String createdByUserId) {
+		this.createdByUserId = createdByUserId;
 	}
 
 	// Utility methods

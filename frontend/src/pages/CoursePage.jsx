@@ -304,6 +304,8 @@ const CoursePage = () => {
                 <VideoPlayer
                   video={currentVideo}
                   onVideoComplete={handleVideoComplete}
+                  isCompleted={isVideoCompleted(currentVideoIndex)}
+                  videoIndex={currentVideoIndex}
                 />
               ) : (
                 <div className="aspect-video bg-neutral-100 flex items-center justify-center">
@@ -323,21 +325,58 @@ const CoursePage = () => {
           >
             <Card>
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-neutral-900 mb-4">
-                  Course Content
-                </h3>
-                
-                {/* Hierarchical Tree View */}
-                <HierarchicalTree
-                  videos={videos}
-                  currentVideoIndex={currentVideoIndex}
-                  onVideoSelect={handleVideoSelect}
-                  isVideoCompleted={isVideoCompleted}
-                />
+                {/* Real-time Progress Bar */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-neutral-900">
+                      Course Progress
+                    </h3>
+                    <span className="text-2xl font-bold text-primary-600">
+                      {Math.round(courseProgress.progressPercentage || 0)}%
+                    </span>
+                  </div>
+                  <div className="relative h-4 bg-neutral-200 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${courseProgress.progressPercentage || 0}%` }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    />
+                    {/* Animated shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-sm text-neutral-600">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      {courseProgress.completedVideos?.length || 0} completed
+                    </span>
+                    <span>{videos?.length || 0} total videos</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-neutral-200 pt-4">
+                  <h4 className="text-sm font-medium text-neutral-500 mb-3">
+                    Course Content
+                  </h4>
+                  
+                  {/* Hierarchical Tree View */}
+                  <HierarchicalTree
+                    videos={videos}
+                    currentVideoIndex={currentVideoIndex}
+                    onVideoSelect={handleVideoSelect}
+                    isVideoCompleted={isVideoCompleted}
+                  />
+                </div>
 
                 {/* Certificate Section */}
                 {videos && videos.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
+                  <motion.div 
+                    className="mt-6 pt-6 border-t border-gray-200"
+                    key={allVideosCompleted ? 'completed' : 'in-progress'}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     {hasCertificate ? (
                       /* Already has certificate */
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
@@ -363,28 +402,51 @@ const CoursePage = () => {
                         </div>
                       </div>
                     ) : allVideosCompleted ? (
-                      /* Can generate certificate */
-                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 border border-indigo-200">
+                      /* Can generate certificate - with celebration animation */
+                      <motion.div 
+                        className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-lg p-4 border-2 border-indigo-300 shadow-lg"
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ 
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 20
+                        }}
+                      >
                         <div className="flex items-start gap-3">
-                          <Trophy className="w-6 h-6 text-indigo-600 mt-0.5 flex-shrink-0" />
+                          <motion.div
+                            animate={{ 
+                              rotate: [0, -10, 10, -10, 0],
+                              scale: [1, 1.1, 1]
+                            }}
+                            transition={{ 
+                              duration: 0.5,
+                              repeat: 2,
+                              repeatDelay: 1
+                            }}
+                          >
+                            <Trophy className="w-8 h-8 text-yellow-500 mt-0.5 flex-shrink-0" />
+                          </motion.div>
                           <div className="flex-1">
-                            <h4 className="font-semibold text-indigo-900 mb-1">
-                              Course Completed!
+                            <h4 className="font-bold text-indigo-900 mb-1 text-lg">
+                              🎉 Course Completed!
                             </h4>
                             <p className="text-sm text-indigo-700 mb-3">
-                              Congratulations! Generate your certificate to showcase your achievement.
+                              Amazing work! You've completed all {videos?.length} videos. Generate your certificate to showcase your achievement.
                             </p>
-                            <button
+                            <motion.button
                               onClick={handleGenerateCertificate}
                               disabled={generatingCertificate}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
                             >
-                              <Award className="w-4 h-4" />
-                              {generatingCertificate ? 'Generating...' : 'Generate Certificate'}
-                            </button>
+                              <Award className="w-5 h-5" />
+                              {generatingCertificate ? 'Generating...' : '🏆 Generate Certificate'}
+                            </motion.button>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ) : (
                       /* In progress */
                       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -399,9 +461,11 @@ const CoursePage = () => {
                             </p>
                             <div className="mt-2 flex items-center gap-2">
                               <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${courseProgress.progressPercentage || 0}%` }}
+                                <motion.div 
+                                  className="bg-indigo-600 h-2 rounded-full"
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${courseProgress.progressPercentage || 0}%` }}
+                                  transition={{ duration: 0.5 }}
                                 />
                               </div>
                               <span className="text-sm font-semibold text-gray-700">
@@ -412,7 +476,7 @@ const CoursePage = () => {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </Card>

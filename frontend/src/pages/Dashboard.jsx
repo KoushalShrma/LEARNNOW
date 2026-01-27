@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Plus, BookOpen, Play, Trophy, Clock, TrendingUp, Target, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { useApiQuery } from '@/hooks/useApi';
 import { topicsAPI, progressAPI, certificatesAPI } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -224,7 +223,7 @@ const Dashboard = () => {
                     <CourseCard 
                       course={topic} 
                       progress={getTopicProgress(topic.id)}
-                      onDelete={refetchTopics}
+                      onDelete={fetchUserTopics}
                     />
                   </motion.div>
                 ))}

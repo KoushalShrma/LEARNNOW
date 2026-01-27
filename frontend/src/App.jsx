@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AuthProvider } from '@/hooks/useAuth.jsx';
 import Layout from '@/components/layout/Layout';
@@ -129,8 +128,6 @@ function App() {
           </Routes>
         </Router>
       </AuthProvider>
-      {/* DevTools only in development */}
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 }

@@ -10,7 +10,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000, // 30 seconds default timeout
 });
 
 // Token management (simplified for Clerk integration)
@@ -165,7 +165,7 @@ export const usersAPI = {
 
 export const certificatesAPI = {
   generate: (userId, courseId, userName) => 
-    api.post('/api/certificates/generate', { userId, courseId, userName }),
+    api.post('/api/certificates/generate', { userId, courseId, userName }, { timeout: 60000 }), // 60s timeout for certificate generation
   getUserCertificates: (userId) => api.get(`/api/certificates/user/${userId}`),
   verify: (certificateNumber) => api.get(`/api/certificates/verify/${certificateNumber}`),
   check: (userId, courseId) => api.get(`/api/certificates/check/${userId}/${courseId}`),

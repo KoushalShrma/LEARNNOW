@@ -1,0 +1,47 @@
+# Render Blueprint - Deploys both backend and frontend
+# Deploy: Connect your GitHub repo to Render and it auto-detects this file
+
+services:
+  # Spring Boot Backend
+  - type: web
+    name: learnnow-api
+    runtime: java
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/LEARNnow-0.0.0.jar
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: 8080
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx512m
+      # Add your secrets in Render Dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+    healthCheckPath: /api/health
+    plan: free
+
+  # React Frontend (Static Site)
+  - type: web
+    name: learnnow-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://learnnow-api.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    plan: free

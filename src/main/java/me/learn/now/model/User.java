@@ -7,7 +7,6 @@ import java.util.List;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "users")  // "user" is a reserved keyword in PostgreSQL
 public class User {
 	
 	@Id

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { Github, Twitter, Linkedin, Mail, Instagram } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -32,10 +32,11 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { name: 'GitHub', icon: Github, href: 'https://github.com' },
-    { name: 'Twitter', icon: Twitter, href: 'https://twitter.com' },
-    { name: 'LinkedIn', icon: Linkedin, href: 'https://linkedin.com' },
-    { name: 'Email', icon: Mail, href: 'mailto:hello@learnnow.com' },
+    { name: 'GitHub', icon: Github, href: 'https://github.com/KoushalShrma' },
+    { name: 'Twitter', icon: Twitter, href: 'https://x.com/KOSLSHARMA' },
+    { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/in/koushalshrma' },
+    { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/koushalshrma/' },
+    { name: 'Email', icon: Mail, href: 'mailto:koushalshrma@gmail.com.com' },
   ];
 
   return (
